@@ -1,0 +1,129 @@
+{
+  "theme_and_archetype": {
+    "theme": "LIGHT",
+    "archetype": "4 (Swiss & High-Contrast)",
+    "reasoning": "A professional, international e-commerce platform needs to establish immense trust and clarity, similar to Amazon Prime but more premium. Swiss High-Contrast provides authority and a function-first layout that handles complex catalogs and administrative tools elegantly."
+  },
+  "typography": {
+    "headings": {
+      "font_family": "Outfit",
+      "weights": ["300", "500", "700"],
+      "usage": "Use 'Outfit' for all main headings (H1-H4). Apply tracking-tight to H1/H2."
+    },
+    "body": {
+      "font_family": "IBM Plex Sans",
+      "weights": ["400", "500"],
+      "usage": "Use 'IBM Plex Sans' for paragraphs, product descriptions, and dense admin dashboard data."
+    },
+    "labels": {
+      "font_family": "Outfit",
+      "weights": ["600"],
+      "styling": "uppercase tracking-[0.2em] text-xs"
+    },
+    "banned_fonts": ["Inter (for headings)", "Roboto", "Open Sans", "Lato"]
+  },
+  "colors": {
+    "background": {
+      "primary": "#FFFFFF",
+      "secondary": "#F8F9FA",
+      "tertiary": "#F1F3F5"
+    },
+    "text": {
+      "primary": "#1A1D20",
+      "secondary": "#495057",
+      "tertiary": "#868E96"
+    },
+    "brand": {
+      "primary": "#0043CE",
+      "primary_hover": "#002D9C",
+      "accent": "#FF832B",
+      "accent_hover": "#E56814"
+    },
+    "status": {
+      "success": "#198038",
+      "warning": "#F1C21B",
+      "error": "#DA1E28",
+      "info": "#0043CE"
+    },
+    "borders": "#E9ECEF"
+  },
+  "spacing_and_layout": {
+    "marketing_pages": {
+      "grid_mode": "MODE A (Tetris Grid)",
+      "gap": "gap-8 to gap-12",
+      "padding": "py-24 px-6 md:px-12 lg:px-24"
+    },
+    "dashboard_and_catalog": {
+      "grid_mode": "MODE B (Control Room)",
+      "gap": "gap-4 or gap-6",
+      "padding": "p-6",
+      "style": "Sharp edges, cardless or max 4px border-radius. Dense and compact."
+    },
+    "rules": [
+      "Use 2-3x more generous spacing in marketing/hero sections.",
+      "Containers with borders must have internal padding (p-6).",
+      "Grid items MUST be direct children of grid containers."
+    ]
+  },
+  "surfaces_and_micro_themes": {
+    "header": "Glassmorphism: backdrop-blur-xl bg-white/80 with a delicate 1px bottom border (border-slate-200).",
+    "product_cards": "Flat solid background (bg-white), 1px subtle border, rounded-lg. On hover: -translate-y-1 shadow-lg.",
+    "admin_cards": "Grid Borders: border-collapse style, sharp edges, no shadows, 1px border. Technical look.",
+    "buttons": "Primary buttons: bg-[#0043CE] text-white hover:bg-[#002D9C]. Accent buttons (Buy Now): bg-[#FF832B] text-white hover:bg-[#E56814]. No pill-shapes, use rounded-md."
+  },
+  "components_strategy": {
+    "ui_library": "shadcn/ui",
+    "modifications": "Override default radii to match brand (rounded-md). Disable default shadows on admin panels to favor grid borders.",
+    "icons": "@phosphor-icons/react (Duotone for marketing, Regular for admin dense views).",
+    "forms": "Use Shadcn components heavily customized to match the Swiss High-Contrast look. Clear label hierarchy."
+  },
+  "media": {
+    "image_urls": [
+      {
+        "url": "https://images.pexels.com/photos/19601318/pexels-photo-19601318.jpeg",
+        "category": "Hero Section",
+        "description": "Fashionable minimalist woman with shopping bag. Use for the main hero image or promotional banners."
+      },
+      {
+        "url": "https://images.pexels.com/photos/25772337/pexels-photo-25772337.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "Product / Tech Category",
+        "description": "Premium tech products on a desk. Good for category featured image."
+      },
+      {
+        "url": "https://images.pexels.com/photos/14168781/pexels-photo-14168781.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "Product Detail Placeholder",
+        "description": "Modern smartphone on dark background. Premium product listing example."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1589363460779-cd717d2ed8fa?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBmYXNoaW9uJTIwYXBwYXJlbHxlbnwwfHx8fDE3ODMzNjcxMTB8MA&ixlib=rb-4.1.0&q=85",
+        "category": "Product / Fashion Category",
+        "description": "Luxury leather bag. Use for high-end catalog items."
+      },
+      {
+        "url": "https://images.pexels.com/photos/21838827/pexels-photo-21838827.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "Shipping / Logistics Feature",
+        "description": "Delivery van for the International Shipping information block."
+      }
+    ],
+    "rules": "NEVER use placeholder text for logos or images. Always apply proper object-cover and max-height constraints."
+  },
+  "motion_and_interactions": {
+    "hovers": "All interactive elements must change state explicitly on hover. e.g. hover:bg-[#002D9C] hover:text-white",
+    "focus": "focus:ring-2 focus:ring-[#0043CE] focus:ring-offset-2",
+    "transitions": "Use specific properties: transition-colors duration-200, transition-transform duration-300."
+  },
+  "accessibility_and_testing": {
+    "contrast": "Ensure minimum 4.5:1 for normal text.",
+    "testing_ids": "All interactive and key informational elements MUST include a data-testid attribute (e.g. data-testid='add-to-cart-button')."
+  },
+  "instructions_to_main_agent": [
+    "Build an E-commerce platform with an Admin portal. Language: ES/EN toggle, Currency: COP.",
+    "Implement Payment integration with Wompi (mock/setup structure). Auth: JWT.",
+    "Catalog requires categories, subcategories, advanced search, and filters.",
+    "Admin dashboard requires metrics, product/category CRUD, order management, user management, and coupons.",
+    "International shipping logic with configurable rates by country/zone must be present.",
+    "DO NOT use Inter or generic sans for headings. Use Outfit.",
+    "Follow the High-Contrast Swiss layout: precise, clean, highly functional but visually striking through typography and spacing.",
+    "Use Phosphor icons via yarn add @phosphor-icons/react."
+  ]
+}
