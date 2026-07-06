@@ -1,0 +1,126 @@
+"""Customer orders: create (with stock validation) and read own orders."""
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from .. import config
+from ..database import get_db
+from ..deps import get_current_user
+from ..models import (
+    Order,
+    OrderCreate,
+    OrderItem,
+    OrderStatus,
+    PaymentStatus,
+    UserPublic,
+    _now,
+)
+
+router = APIRouter(prefix="/api/orders", tags=["orders"])
+
+PROJECT = {"_id": 0}
+
+
+def compute_shipping(subtotal: int) -> int:
+    if subtotal <= 0 or subtotal >= config.FREE_SHIPPING_OVER:
+        return 0
+    return config.SHIPPING_COST
+
+
+async def mark_order_paid(db, order: dict, transaction_id: Optional[str] = None) -> None:
+    """Idempotently mark an order paid and decrement stock exactly once."""
+    if order.get("payment_status") == PaymentStatus.approved.value:
+        return
+    for item in order.get("items", []):
+        await db.products.update_one(
+            {"id": item["product_id"]},
+            {"$inc": {"stock": -int(item["quantity"])}},
+        )
+    await db.orders.update_one(
+        {"id": order["id"]},
+        {
+            "$set": {
+                "payment_status": PaymentStatus.approved.value,
+                "status": OrderStatus.paid.value,
+                "wompi_transaction_id": transaction_id,
+                "updated_at": _now(),
+            }
+        },
+    )
+
+
+async def set_payment_failed(db, order_id: str, payment_status: str, transaction_id: Optional[str]):
+    await db.orders.update_one(
+        {"id": order_id},
+        {
+            "$set": {
+                "payment_status": payment_status,
+                "wompi_transaction_id": transaction_id,
+                "updated_at": _now(),
+            }
+        },
+    )
+
+
+@router.post("", response_model=Order, status_code=status.HTTP_201_CREATED)
+async def create_order(body: OrderCreate, user: UserPublic = Depends(get_current_user)):
+    db = get_db()
+
+    # Collapse duplicate product lines and validate availability.
+    wanted: dict[str, int] = {}
+    for item in body.items:
+        wanted[item.product_id] = wanted.get(item.product_id, 0) + item.quantity
+
+    order_items: list[OrderItem] = []
+    subtotal = 0
+    for product_id, quantity in wanted.items():
+        product = await db.products.find_one({"id": product_id}, PROJECT)
+        if not product or not product.get("active", False):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Producto no disponible: {product_id}")
+        if product["stock"] < quantity:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"Stock insuficiente para '{product['name']}' (disponible: {product['stock']})",
+            )
+        line_subtotal = product["price"] * quantity
+        subtotal += line_subtotal
+        order_items.append(
+            OrderItem(
+                product_id=product_id,
+                name=product["name"],
+                price=product["price"],
+                quantity=quantity,
+                subtotal=line_subtotal,
+            )
+        )
+
+    shipping = compute_shipping(subtotal)
+    order = Order(
+        user_id=user.id,
+        customer_email=user.email,
+        items=order_items,
+        subtotal=subtotal,
+        shipping_cost=shipping,
+        total=subtotal + shipping,
+        shipping_address=body.shipping_address,
+    )
+    await db.orders.insert_one(order.model_dump())
+    return order
+
+
+@router.get("/mine", response_model=list[Order])
+async def my_orders(user: UserPublic = Depends(get_current_user)):
+    db = get_db()
+    cursor = db.orders.find({"user_id": user.id}, PROJECT).sort("created_at", -1)
+    return [Order(**o) for o in await cursor.to_list(500)]
+
+
+@router.get("/{order_id}", response_model=Order)
+async def get_order(order_id: str, user: UserPublic = Depends(get_current_user)):
+    db = get_db()
+    order = await db.orders.find_one({"id": order_id}, PROJECT)
+    if not order:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pedido no encontrado")
+    if order.get("user_id") != user.id and user.role.value != "admin":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "No autorizado")
+    return Order(**order)
