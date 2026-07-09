@@ -1,31 +1,40 @@
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { X, Truck, ShieldCheck, CreditCard } from "lucide-react";
+import { X, Printer, Shirt, Scissors, PenTool } from "lucide-react";
 import { api } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
+const SERVICES = [
+  { icon: Printer, label: "Impresión DTF gran formato" },
+  { icon: Shirt, label: "Estampados & prendas personalizadas" },
+  { icon: Scissors, label: "Sublimación y corte de vinilo" },
+  { icon: PenTool, label: "Diseño gráfico" },
+];
+
 function Hero() {
   return (
     <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-r from-black via-neutral-900 to-primary/80 px-8 py-12 text-white">
-      <h1 className="max-w-2xl text-3xl font-extrabold leading-tight md:text-5xl">
-        Todo lo que buscas, en un solo lugar
+      <p className="text-sm font-semibold uppercase tracking-widest text-primary-foreground/80">
+        Impresión DTF & Estampados
+      </p>
+      <h1 className="mt-2 max-w-2xl text-3xl font-extrabold leading-tight md:text-5xl">
+        Calidad que se ve,<br />durabilidad que se siente.
       </h1>
       <p className="mt-3 max-w-xl text-white/80 md:text-lg">
-        Explora nuestro catálogo y recibe tu pedido en la puerta de tu casa, con
-        seguimiento en cada etapa.
+        Personalizados, impresión de gran formato DTF, sublimación y corte de
+        vinilo. Cotiza, paga en línea y sigue tu pedido o servicio en cada etapa.
       </p>
-      <div className="mt-6 flex flex-wrap gap-4 text-sm">
-        <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">
-          <Truck className="h-4 w-4" /> Envío a todo el país
-        </span>
-        <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">
-          <CreditCard className="h-4 w-4" /> Pago seguro con Wompi
-        </span>
-        <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">
-          <ShieldCheck className="h-4 w-4" /> Compra protegida
-        </span>
+      <div className="mt-6 flex flex-wrap gap-3 text-sm">
+        {SERVICES.map(({ icon: Icon, label }) => (
+          <span
+            key={label}
+            className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2"
+          >
+            <Icon className="h-4 w-4" /> {label}
+          </span>
+        ))}
       </div>
     </section>
   );

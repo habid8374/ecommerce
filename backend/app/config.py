@@ -32,6 +32,10 @@ ADMIN_EMAIL = _get("ADMIN_EMAIL", "admin@ecommerce.com")
 ADMIN_PASSWORD = _get("ADMIN_PASSWORD", "admin123")
 ADMIN_NAME = _get("ADMIN_NAME", "Administrador")
 
+# When true, on startup the demo catalog is wiped and re-seeded. Use it once to
+# refresh the sample products, then remove the variable. (Deletes ALL products.)
+RESEED_PRODUCTS = _get("RESEED_PRODUCTS", "").lower() in ("true", "1", "yes")
+
 # --- CORS -----------------------------------------------------------------
 CORS_ORIGINS = [o for o in _get("CORS_ORIGINS", "*").split(",") if o] or ["*"]
 

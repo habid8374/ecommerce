@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ShoppingCart, ArrowLeft, Minus, Plus } from "lucide-react";
+import { ShoppingCart, ArrowLeft, Minus, Plus, PackageSearch } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { formatCOP } from "@/lib/format";
@@ -119,6 +119,18 @@ export default function ProductDetail() {
               </Button>
             </div>
           )}
+
+          <div className="mt-6 flex items-start gap-3 rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
+            <PackageSearch className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <p>
+              Crea tu cuenta o inicia sesión para comprar y{" "}
+              <span className="font-medium text-foreground">
+                seguir el proceso de tu pedido o servicio
+              </span>{" "}
+              (DTF, sublimación, corte de vinilo, gran formato…) en cada etapa
+              hasta la entrega.
+            </p>
+          </div>
         </div>
       </div>
     </div>

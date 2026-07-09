@@ -7,54 +7,80 @@ from .models import Product, Role, _now, _uuid, slugify
 
 logger = logging.getLogger(__name__)
 
+# GRAFIBLESS: impresión DTF & estampados, sublimación, corte de vinilo,
+# prendas personalizadas y diseño gráfico. Servicios se manejan con stock alto.
 DEMO_PRODUCTS = [
     {
-        "name": "Audífonos Inalámbricos Pro",
-        "description": "Cancelación activa de ruido, 30h de batería y estuche de carga rápida.",
-        "price": 289000,
-        "stock": 40,
-        "category": "electrónica",
-        "images": ["https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800"],
+        "name": "Impresión DTF - Gran Formato (metro lineal)",
+        "description": "Impresión DTF de gran formato por metro lineal. Colores vivos, alta "
+        "durabilidad y excelente elasticidad. Ideal para producción en volumen.",
+        "price": 45000,
+        "stock": 999,
+        "category": "dtf",
+        "images": ["https://images.unsplash.com/photo-1611095564985-93f0f5f9f7e9?w=800"],
     },
     {
-        "name": "Smartwatch Serie 7",
-        "description": "Monitor de ritmo cardíaco, GPS y resistencia al agua.",
-        "price": 459000,
-        "stock": 25,
-        "category": "electrónica",
-        "images": ["https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800"],
+        "name": "Estampado DTF en Camiseta",
+        "description": "Estampado DTF aplicado sobre tu camiseta o una nuestra. Diseño a todo "
+        "color, tacto suave y resistente al lavado.",
+        "price": 25000,
+        "stock": 999,
+        "category": "estampados",
+        "images": ["https://images.unsplash.com/photo-1503341504253-dff4815485f1?w=800"],
     },
     {
-        "name": "Zapatillas Running Cloud",
-        "description": "Amortiguación ligera para largas distancias.",
-        "price": 219000,
-        "stock": 60,
-        "category": "deportes",
-        "images": ["https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800"],
+        "name": "Camiseta Personalizada (algodón premium)",
+        "description": "Camiseta 100% algodón con tu diseño estampado en DTF. Varias tallas y "
+        "colores disponibles.",
+        "price": 55000,
+        "stock": 150,
+        "category": "prendas",
+        "images": ["https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800"],
     },
     {
-        "name": "Cafetera Espresso Compacta",
-        "description": "Prepara espresso de calidad barista en casa.",
-        "price": 349000,
-        "stock": 18,
-        "category": "hogar",
-        "images": ["https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800"],
+        "name": "Buzo / Hoodie Personalizado",
+        "description": "Buzo con capucha personalizado con tu logo o arte. Tela de alta calidad, "
+        "estampado DTF de larga duración.",
+        "price": 95000,
+        "stock": 80,
+        "category": "prendas",
+        "images": ["https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=800"],
     },
     {
-        "name": "Mochila Antirrobo Urbana",
-        "description": "Compartimento para laptop de 15\", puerto USB y tela impermeable.",
-        "price": 129000,
-        "stock": 3,
-        "category": "accesorios",
-        "images": ["https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800"],
+        "name": "Sublimación en Mug 11oz",
+        "description": "Mug de cerámica sublimado a todo color con tu foto o diseño. Apto para "
+        "uso diario.",
+        "price": 22000,
+        "stock": 200,
+        "category": "sublimación",
+        "images": ["https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=800"],
     },
     {
-        "name": "Teclado Mecánico RGB",
-        "description": "Switches táctiles, retroiluminación personalizable y construcción en aluminio.",
-        "price": 199000,
-        "stock": 32,
-        "category": "electrónica",
-        "images": ["https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=800"],
+        "name": "Corte de Vinilo Textil (m²)",
+        "description": "Corte de vinilo textil de precisión para logos, números y letras. "
+        "Aplicación en prendas por termofijado.",
+        "price": 38000,
+        "stock": 999,
+        "category": "vinilo",
+        "images": ["https://images.unsplash.com/photo-1633354931133-2b7a26f4c37f?w=800"],
+    },
+    {
+        "name": "Impresión Gran Formato - Pendón / Banner",
+        "description": "Impresión de pendones y banners publicitarios en gran formato. Material "
+        "resistente para interior y exterior.",
+        "price": 60000,
+        "stock": 999,
+        "category": "gran formato",
+        "images": ["https://images.unsplash.com/photo-1588412079929-790b9f593d8e?w=800"],
+    },
+    {
+        "name": "Diseño Gráfico Personalizado",
+        "description": "Servicio de diseño gráfico profesional: logos, artes para estampado y "
+        "piezas publicitarias listas para imprimir.",
+        "price": 80000,
+        "stock": 999,
+        "category": "diseño",
+        "images": ["https://images.unsplash.com/photo-1626785774573-4b799315345d?w=800"],
     },
 ]
 
@@ -83,7 +109,11 @@ async def ensure_admin() -> None:
 
 async def ensure_demo_products() -> None:
     db = get_db()
-    if await db.products.count_documents({}) > 0:
+    if config.RESEED_PRODUCTS:
+        # Opt-in full refresh of the sample catalog (removes ALL products).
+        deleted = (await db.products.delete_many({})).deleted_count
+        logger.info("RESEED_PRODUCTS set: cleared %d existing products", deleted)
+    elif await db.products.count_documents({}) > 0:
         return
     for data in DEMO_PRODUCTS:
         product = Product(**data)

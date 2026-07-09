@@ -77,15 +77,19 @@ export default function StoreLayout() {
           <SearchBar className="mx-2 hidden max-w-2xl flex-1 md:flex" />
 
           <div className="ml-auto flex items-center gap-1 sm:gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate(isAdmin ? "/admin" : "/login")}
-              className="hidden gap-2 text-white hover:bg-white/10 hover:text-white sm:inline-flex"
-              data-testid="nav-admin-button"
-            >
-              <ShieldCheck className="h-4 w-4" /> Admin
-            </Button>
+            {/* Single admin entry point: a shortcut for guests/customers.
+                Admins reach the panel from their account menu ("Panel admin"). */}
+            {!isAdmin && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/login")}
+                className="hidden gap-2 text-white hover:bg-white/10 hover:text-white sm:inline-flex"
+                data-testid="nav-admin-button"
+              >
+                <ShieldCheck className="h-4 w-4" /> Admin
+              </Button>
+            )}
 
             {user ? (
               <DropdownMenu>
@@ -185,9 +189,11 @@ export default function StoreLayout() {
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/70">
             <Link to="/" className="hover:text-white">Inicio</Link>
             <Link to="/orders" className="hover:text-white">Mis pedidos</Link>
-            <button onClick={() => navigate(isAdmin ? "/admin" : "/login")} className="hover:text-white">
-              Admin
-            </button>
+            {!isAdmin && (
+              <button onClick={() => navigate("/login")} className="hover:text-white">
+                Admin
+              </button>
+            )}
           </div>
           <p className="text-sm text-white/50">
             © {new Date().getFullYear()} GRAFIBLESS · Pagos seguros con Wompi
