@@ -260,6 +260,66 @@ def test_order_requires_complete_profile(client, db, admin_token):
     assert resp.status_code == 422
 
 
+def test_customer_deletes_unpaid_order(client, db, admin_token):
+    product = _make_product(client, admin_token)
+    token = register(client).json()["access_token"]
+    order = client.post(
+        "/api/orders", headers=auth(token),
+        json={"items": [{"product_id": product["id"], "quantity": 1}]},
+    ).json()
+
+    # Delete own pending order (e.g. payment failed).
+    resp = client.delete(f"/api/orders/{order['id']}", headers=auth(token))
+    assert resp.status_code == 204
+    assert client.get(f"/api/orders/{order['id']}", headers=auth(token)).status_code == 404
+
+
+def test_customer_cannot_delete_paid_order(client, db, admin_token):
+    product = _make_product(client, admin_token)
+    token = register(client).json()["access_token"]
+    order = client.post(
+        "/api/orders", headers=auth(token),
+        json={"items": [{"product_id": product["id"], "quantity": 1}]},
+    ).json()
+    client.post(f"/api/payments/orders/{order['id']}/simulate", headers=auth(token))
+    assert client.delete(f"/api/orders/{order['id']}", headers=auth(token)).status_code == 403
+
+
+def test_admin_delete_order_restores_stock(client, db, admin_token):
+    product = _make_product(client, admin_token, stock=10)
+    token = register(client).json()["access_token"]
+    order = client.post(
+        "/api/orders", headers=auth(token),
+        json={"items": [{"product_id": product["id"], "quantity": 3}]},
+    ).json()
+    client.post(f"/api/payments/orders/{order['id']}/simulate", headers=auth(token))
+    assert client.get(f"/api/products/{product['id']}").json()["stock"] == 7
+
+    resp = client.delete(f"/api/admin/orders/{order['id']}", headers=auth(admin_token))
+    assert resp.status_code == 204
+    assert client.get(f"/api/products/{product['id']}").json()["stock"] == 10  # restored
+
+
+def test_category_edit_renames_products(client, db, admin_token):
+    client.post(
+        "/api/admin/products", headers=auth(admin_token),
+        json={"name": "Mug", "price": 20000, "category": "sublimacion"},
+    )
+    cats = client.get("/api/admin/categories", headers=auth(admin_token)).json()
+    cat = next(c for c in cats if c["name"] == "sublimacion")
+
+    resp = client.put(
+        f"/api/admin/categories/{cat['id']}", headers=auth(admin_token),
+        json={"name": "Sublimación DTF"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["name"] == "sublimación dtf"
+
+    # Products with the old category were updated.
+    items = client.get("/api/products", params={"category": "sublimación dtf"}).json()["items"]
+    assert len(items) == 1
+
+
 def test_admin_confirm_payment(client, db, admin_token):
     product = _make_product(client, admin_token)
     token = register(client).json()["access_token"]

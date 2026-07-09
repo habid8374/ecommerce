@@ -1,17 +1,28 @@
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { Package } from "lucide-react";
-import { api } from "@/lib/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Package, Trash2 } from "lucide-react";
+import { api, apiError } from "@/lib/api";
 import { formatCOP, formatDate, ORDER_STATUS } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MyOrders() {
+  const qc = useQueryClient();
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["my-orders"],
     queryFn: async () => (await api.get("/orders/mine")).data,
     refetchInterval: 15000, // live status updates
+  });
+
+  const deleteOrder = useMutation({
+    mutationFn: (id) => api.delete(`/orders/${id}`),
+    onSuccess: () => {
+      toast.success("Pedido eliminado");
+      qc.invalidateQueries({ queryKey: ["my-orders"] });
+    },
+    onError: (err) => toast.error(apiError(err)),
   });
 
   if (isLoading) {
@@ -59,9 +70,24 @@ export default function MyOrders() {
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-bold">{formatCOP(order.total)}</p>
-                  <Button asChild variant="link" size="sm" className="h-auto p-0">
-                    <Link to={`/order-confirmation/${order.id}`}>Ver seguimiento</Link>
-                  </Button>
+                  <div className="mt-1 flex items-center justify-end gap-3">
+                    {order.payment_status !== "approved" && (
+                      <button
+                        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-destructive"
+                        disabled={deleteOrder.isPending}
+                        onClick={() => {
+                          if (window.confirm("¿Eliminar este pedido no pagado?"))
+                            deleteOrder.mutate(order.id);
+                        }}
+                        data-testid="my-order-delete"
+                      >
+                        <Trash2 className="h-4 w-4" /> Eliminar
+                      </button>
+                    )}
+                    <Button asChild variant="link" size="sm" className="h-auto p-0">
+                      <Link to={`/order-confirmation/${order.id}`}>Ver seguimiento</Link>
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

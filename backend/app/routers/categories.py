@@ -69,6 +69,34 @@ async def create_category(body: CategoryCreate, _: UserPublic = Depends(get_curr
     return category
 
 
+@router.put("/api/admin/categories/{category_id}", response_model=Category, tags=["admin"])
+async def update_category(
+    category_id: str, body: CategoryCreate, _: UserPublic = Depends(get_current_admin)
+):
+    db = get_db()
+    existing = await db.categories.find_one({"id": category_id}, PROJECT)
+    if not existing:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Categoría no encontrada")
+
+    new_name = normalize(body.name)
+    if not new_name:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Nombre de categoría inválido")
+
+    old_name = existing["name"]
+    if new_name != old_name:
+        clash = await db.categories.find_one({"name": new_name}, {"_id": 0, "id": 1})
+        if clash:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Ya existe una categoría con ese nombre")
+        await db.categories.update_one(
+            {"id": category_id}, {"$set": {"name": new_name, "slug": slugify(new_name)}}
+        )
+        # Keep products consistent with the renamed category.
+        await db.products.update_many({"category": old_name}, {"$set": {"category": new_name}})
+
+    doc = await db.categories.find_one({"id": category_id}, PROJECT)
+    return Category(**doc)
+
+
 @router.delete(
     "/api/admin/categories/{category_id}",
     status_code=status.HTTP_204_NO_CONTENT,

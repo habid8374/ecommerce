@@ -86,6 +86,23 @@ async def confirm_payment(order_id: str, _: UserPublic = Depends(get_current_adm
     return Order(**order)
 
 
+@router.delete("/orders/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_order(order_id: str, _: UserPublic = Depends(get_current_admin)):
+    """Delete any order. If it had been paid (stock already decremented), the
+    stock is restored so inventory stays correct."""
+    db = get_db()
+    order = await db.orders.find_one({"id": order_id}, PROJECT)
+    if not order:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pedido no encontrado")
+    if order.get("payment_status") == PaymentStatus.approved.value:
+        for item in order.get("items", []):
+            await db.products.update_one(
+                {"id": item["product_id"]},
+                {"$inc": {"stock": int(item["quantity"])}},
+            )
+    await db.orders.delete_one({"id": order_id})
+
+
 @router.get("/orders/pending-count")
 async def pending_payment_count(_: UserPublic = Depends(get_current_admin)):
     """Orders awaiting payment verification — used for the live admin badge."""

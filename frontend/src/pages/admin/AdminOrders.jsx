@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Trash2 } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import { formatCOP, formatDate, ORDER_STATUS, PAYMENT_STATUS } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
@@ -56,6 +56,17 @@ export default function AdminOrders() {
     onSuccess: (res) => {
       toast.success("Pago verificado");
       setSelected(res.data);
+      qc.invalidateQueries({ queryKey: ["admin-orders"] });
+      qc.invalidateQueries({ queryKey: ["admin-stats"] });
+    },
+    onError: (err) => toast.error(apiError(err)),
+  });
+
+  const deleteOrder = useMutation({
+    mutationFn: (id) => api.delete(`/admin/orders/${id}`),
+    onSuccess: () => {
+      toast.success("Pedido eliminado");
+      setSelected(null);
       qc.invalidateQueries({ queryKey: ["admin-orders"] });
       qc.invalidateQueries({ queryKey: ["admin-stats"] });
     },
@@ -224,6 +235,29 @@ export default function AdminOrders() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="border-t pt-4">
+                  <Button
+                    variant="ghost"
+                    className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    disabled={deleteOrder.isPending}
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          "¿Eliminar este pedido? Esta acción no se puede deshacer." +
+                            (selected.payment_status === "approved"
+                              ? " El stock será restaurado."
+                              : "")
+                        )
+                      )
+                        deleteOrder.mutate(selected.id);
+                    }}
+                    data-testid="order-delete-button"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {deleteOrder.isPending ? "Eliminando..." : "Eliminar pedido"}
+                  </Button>
                 </div>
               </div>
             </>

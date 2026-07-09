@@ -144,3 +144,19 @@ async def get_order(order_id: str, user: UserPublic = Depends(get_current_user))
     if order.get("user_id") != user.id and user.role.value != "admin":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "No autorizado")
     return Order(**order)
+
+
+@router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_my_order(order_id: str, user: UserPublic = Depends(get_current_user)):
+    """Let a customer remove their own order while it hasn't been paid — useful
+    when the payment failed and the order got stuck as pending."""
+    db = get_db()
+    order = await db.orders.find_one({"id": order_id}, PROJECT)
+    if not order or order.get("user_id") != user.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pedido no encontrado")
+    if order.get("payment_status") == PaymentStatus.approved.value:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "No puedes eliminar un pedido ya pagado. Contacta al soporte.",
+        )
+    await db.orders.delete_one({"id": order_id})
