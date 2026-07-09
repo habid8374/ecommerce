@@ -1,23 +1,31 @@
+# Default frontend image (Railway / any platform that injects $PORT).
+#
+# Serves the static build directly on $PORT; the SPA talks to the backend's
+# PUBLIC url, baked in at build time via REACT_APP_BACKEND_URL (set it as a
+# service Variable in Railway).
+#
+# For docker-compose / single-origin VPS deploys, see Dockerfile.compose
+# (nginx reverse proxy) which docker-compose.yml builds explicitly.
+
 # ---- Build stage ----
 FROM node:20-alpine AS build
-
 WORKDIR /app
 
-# CRA bakes env vars at build time. Default empty => the app calls "/api",
-# which nginx proxies to the backend (single-origin deployment).
-ARG REACT_APP_BACKEND_URL=""
+ARG REACT_APP_BACKEND_URL
 ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
 
-# yarn.lock is optional (the * glob won't fail if it's absent).
 COPY package.json yarn.lock* ./
 RUN yarn install --network-timeout 600000
-
 COPY . .
 RUN yarn build
 
 # ---- Runtime stage ----
-FROM nginx:alpine
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/build /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+FROM node:20-alpine
+WORKDIR /app
+RUN npm install -g serve@14
+COPY --from=build /app/build ./build
+
+ENV PORT=8080
+EXPOSE 8080
+# `serve` sends every unknown path to index.html (SPA routing) by default.
+CMD ["sh", "-c", "serve -s build -l ${PORT:-8080}"]

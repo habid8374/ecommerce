@@ -8,11 +8,12 @@ En Railway crearás **2 servicios** desde este mismo repo:
 | Servicio | Carpeta raíz | Dockerfile | Qué es |
 |---|---|---|---|
 | `backend`  | `/backend`  | `Dockerfile` (por defecto) | API FastAPI |
-| `frontend` | `/frontend` | `Dockerfile.railway` | Tienda React (estática) |
+| `frontend` | `/frontend` | `Dockerfile` (por defecto) | Tienda React (estática) |
 
-> Nota: el `docker-compose.yml` del repo sigue sirviendo para VPS/local. Railway
-> usa el modelo de "cada servicio con su dominio", por eso el frontend usa un
-> Dockerfile distinto (`Dockerfile.railway`).
+> Nota: el `docker-compose.yml` del repo sigue sirviendo para VPS/local (usa
+> `frontend/Dockerfile.compose`, con nginx). Railway usa el modelo de "cada
+> servicio con su dominio" y toma el `frontend/Dockerfile` por defecto, que
+> sirve la app estática en `$PORT`.
 
 ---
 
@@ -80,7 +81,8 @@ En el proyecto: **New → GitHub Repo → el mismo repo** (crea un segundo servi
 En **Settings**:
 
 - **Root Directory:** `frontend`
-- **Dockerfile Path:** `Dockerfile.railway`  ← importante
+  (Railway detecta automáticamente `frontend/Dockerfile`, que sirve la app
+  estática en `$PORT`. No hace falta configurar ninguna ruta de Dockerfile.)
 
 En **Variables**:
 

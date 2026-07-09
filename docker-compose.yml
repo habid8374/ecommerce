@@ -36,6 +36,8 @@ services:
   frontend:
     build:
       context: ./frontend
+      # nginx single-origin image (default Dockerfile is the Railway/serve one).
+      dockerfile: Dockerfile.compose
       args:
         # Empty => the SPA calls same-origin /api, proxied by nginx to backend.
         REACT_APP_BACKEND_URL: ""
