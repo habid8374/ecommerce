@@ -59,7 +59,7 @@ export default function MyOrders() {
                 <div className="text-right">
                   <p className="text-lg font-bold">{formatCOP(order.total)}</p>
                   <Button asChild variant="link" size="sm" className="h-auto p-0">
-                    <Link to={`/order-confirmation/${order.id}`}>Ver detalle</Link>
+                    <Link to={`/order-confirmation/${order.id}`}>Ver seguimiento</Link>
                   </Button>
                 </div>
               </CardContent>

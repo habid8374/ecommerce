@@ -1,16 +1,53 @@
-import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Search } from "lucide-react";
+import { X, Truck, ShieldCheck, CreditCard } from "lucide-react";
 import { api } from "@/lib/api";
 import ProductCard from "@/components/ProductCard";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
+function Hero() {
+  return (
+    <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-r from-black via-neutral-900 to-primary/80 px-8 py-12 text-white">
+      <h1 className="max-w-2xl text-3xl font-extrabold leading-tight md:text-5xl">
+        Todo lo que buscas, en un solo lugar
+      </h1>
+      <p className="mt-3 max-w-xl text-white/80 md:text-lg">
+        Explora nuestro catálogo y recibe tu pedido en la puerta de tu casa, con
+        seguimiento en cada etapa.
+      </p>
+      <div className="mt-6 flex flex-wrap gap-4 text-sm">
+        <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">
+          <Truck className="h-4 w-4" /> Envío a todo el país
+        </span>
+        <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">
+          <CreditCard className="h-4 w-4" /> Pago seguro con Wompi
+        </span>
+        <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">
+          <ShieldCheck className="h-4 w-4" /> Compra protegida
+        </span>
+      </div>
+    </section>
+  );
+}
+
 export default function Home() {
-  const [search, setSearch] = useState("");
-  const [term, setTerm] = useState("");
-  const [category, setCategory] = useState("");
+  const [params, setParams] = useSearchParams();
+  const search = params.get("search") || "";
+  const category = params.get("category") || "";
+
+  const setCategory = (c) => {
+    const next = new URLSearchParams(params);
+    if (c) next.set("category", c);
+    else next.delete("category");
+    setParams(next);
+  };
+
+  const clearSearch = () => {
+    const next = new URLSearchParams(params);
+    next.delete("search");
+    setParams(next);
+  };
 
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
@@ -18,79 +55,68 @@ export default function Home() {
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ["products", term, category],
+    queryKey: ["products", search, category],
     queryFn: async () =>
       (
         await api.get("/products", {
-          params: { search: term || undefined, category: category || undefined, page_size: 24 },
+          params: { search: search || undefined, category: category || undefined, page_size: 30 },
         })
       ).data,
   });
 
   const products = data?.items || [];
+  const filtering = Boolean(search || category);
 
   return (
     <div>
-      <section className="mb-8 rounded-xl bg-gradient-to-r from-primary to-primary/80 p-8 text-primary-foreground">
-        <h1 className="text-3xl font-bold md:text-4xl">Todo lo que buscas, en un solo lugar</h1>
-        <p className="mt-2 max-w-lg text-primary-foreground/90">
-          Explora nuestro catálogo y recibe tu pedido en la puerta de tu casa.
-        </p>
-      </section>
+      {!filtering && <Hero />}
 
-      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setTerm(search);
-          }}
-          className="flex w-full max-w-md gap-2"
+      {/* Category chips */}
+      <div className="mb-6 flex flex-wrap gap-2">
+        <Button
+          variant={category === "" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setCategory("")}
         >
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar productos..."
-              className="pl-9"
-              data-testid="catalog-search-input"
-            />
-          </div>
-          <Button type="submit">Buscar</Button>
-        </form>
-
-        <div className="flex flex-wrap gap-2">
+          Todos
+        </Button>
+        {categories.map((c) => (
           <Button
-            variant={category === "" ? "default" : "outline"}
+            key={c}
+            variant={category === c ? "default" : "outline"}
             size="sm"
-            onClick={() => setCategory("")}
+            className="capitalize"
+            onClick={() => setCategory(c)}
           >
-            Todos
+            {c}
           </Button>
-          {categories.map((c) => (
-            <Button
-              key={c}
-              variant={category === c ? "default" : "outline"}
-              size="sm"
-              className="capitalize"
-              onClick={() => setCategory(c)}
-            >
-              {c}
-            </Button>
-          ))}
-        </div>
+        ))}
       </div>
 
+      {/* Active search banner */}
+      {search && (
+        <div className="mb-4 flex items-center gap-3">
+          <p className="text-lg">
+            Resultados para <span className="font-semibold">“{search}”</span>
+          </p>
+          <Button variant="ghost" size="sm" onClick={clearSearch} className="gap-1">
+            <X className="h-4 w-4" /> Limpiar
+          </Button>
+        </div>
+      )}
+
       {isLoading ? (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {Array.from({ length: 10 }).map((_, i) => (
             <Skeleton key={i} className="h-80 w-full rounded-xl" />
           ))}
         </div>
       ) : products.length === 0 ? (
-        <p className="py-16 text-center text-muted-foreground">No se encontraron productos.</p>
+        <div className="py-20 text-center text-muted-foreground">
+          No se encontraron productos{search ? ` para “${search}”` : ""}.
+        </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {products.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}

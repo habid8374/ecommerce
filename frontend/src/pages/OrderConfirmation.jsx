@@ -2,7 +2,8 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
-import { formatCOP, ORDER_STATUS } from "@/lib/format";
+import { formatCOP, formatDate, ORDER_STATUS } from "@/lib/format";
+import OrderTracker from "@/components/OrderTracker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -75,13 +76,27 @@ export default function OrderConfirmation() {
         </CardContent>
       </Card>
 
+      {/* Trazabilidad del pedido */}
       <Card className="mt-4">
-        <CardContent className="space-y-3 p-6">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Estado</span>
+        <CardContent className="p-6">
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="font-semibold">Seguimiento del pedido</h2>
             <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${status?.className}`}>
               {status?.label}
             </span>
+          </div>
+          <OrderTracker status={order.status} />
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            Última actualización: {formatDate(order.updated_at)}
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="space-y-3 p-6">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Pago</span>
+            <span className="text-sm font-medium">{order.payment_status}</span>
           </div>
           {order.items.map((it) => (
             <div key={it.product_id} className="flex justify-between text-sm">
