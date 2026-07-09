@@ -1,0 +1,29 @@
+# Frontend image for Railway (and any platform that injects $PORT).
+#
+# Unlike the default ./Dockerfile (nginx, single-origin reverse proxy for
+# docker-compose/VPS), this one serves the static build directly on $PORT and
+# the SPA talks to the backend's PUBLIC url, baked in at build time via
+# REACT_APP_BACKEND_URL. Set that as a service Variable in Railway.
+
+# ---- Build stage ----
+FROM node:20-alpine AS build
+WORKDIR /app
+
+ARG REACT_APP_BACKEND_URL
+ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
+
+COPY package.json yarn.lock* ./
+RUN yarn install --network-timeout 600000
+COPY . .
+RUN yarn build
+
+# ---- Runtime stage ----
+FROM node:20-alpine
+WORKDIR /app
+RUN npm install -g serve@14
+COPY --from=build /app/build ./build
+
+ENV PORT=8080
+EXPOSE 8080
+# `serve` sends every unknown path to index.html (SPA routing) by default.
+CMD ["sh", "-c", "serve -s build -l ${PORT:-8080}"]

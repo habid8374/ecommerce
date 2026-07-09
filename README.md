@@ -53,6 +53,13 @@ docker compose up --build
 
 En el primer arranque se crea el usuario admin y un catálogo de demostración.
 
+## Despliegue en producción
+
+- **Railway + MongoDB Atlas** (recomendado, sin servidor): ver
+  [`DEPLOY_RAILWAY.md`](./DEPLOY_RAILWAY.md).
+- **VPS / self-hosted**: `docker compose up --build` detrás de un reverse proxy
+  con HTTPS (Caddy/Nginx/Traefik).
+
 ## Desarrollo local (sin Docker)
 
 **Backend** (requiere un MongoDB accesible):

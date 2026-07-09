@@ -15,9 +15,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# PORT is provided by the platform (Railway, etc.); defaults to 8001 locally
+# and for docker-compose (where nginx proxies to backend:8001).
+ENV PORT=8001
 EXPOSE 8001
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD curl -fsS http://localhost:8001/api/health || exit 1
+    CMD curl -fsS http://localhost:${PORT:-8001}/api/health || exit 1
 
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["sh", "-c", "uvicorn server:app --host 0.0.0.0 --port ${PORT:-8001}"]
