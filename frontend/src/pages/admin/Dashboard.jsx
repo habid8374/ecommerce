@@ -26,6 +26,7 @@ export default function Dashboard() {
   const { data, isLoading } = useQuery({
     queryKey: ["admin-stats"],
     queryFn: async () => (await api.get("/admin/stats")).data,
+    refetchInterval: 15000, // live dashboard
   });
 
   if (isLoading || !data) {

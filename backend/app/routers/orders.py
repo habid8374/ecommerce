@@ -12,6 +12,7 @@ from ..models import (
     OrderItem,
     OrderStatus,
     PaymentStatus,
+    ShippingAddress,
     UserPublic,
     _now,
 )
@@ -66,6 +67,22 @@ async def set_payment_failed(db, order_id: str, payment_status: str, transaction
 async def create_order(body: OrderCreate, user: UserPublic = Depends(get_current_user)):
     db = get_db()
 
+    # Shipping/invoice data comes from the saved profile — no re-entry at checkout.
+    if not user.profile_complete:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Completa los datos de tu perfil (documento y dirección) antes de comprar.",
+        )
+    shipping = ShippingAddress(
+        full_name=user.name,
+        phone=user.phone,
+        address=user.address,
+        city=user.city,
+        region=user.region,
+        notes=user.address_notes,
+        postal_code=user.postal_code,
+    )
+
     # Collapse duplicate product lines and validate availability.
     wanted: dict[str, int] = {}
     for item in body.items:
@@ -94,15 +111,18 @@ async def create_order(body: OrderCreate, user: UserPublic = Depends(get_current
             )
         )
 
-    shipping = compute_shipping(subtotal)
+    shipping_cost = compute_shipping(subtotal)
     order = Order(
         user_id=user.id,
         customer_email=user.email,
+        customer_name=user.name,
+        doc_type=user.doc_type,
+        doc_number=user.doc_number,
         items=order_items,
         subtotal=subtotal,
-        shipping_cost=shipping,
-        total=subtotal + shipping,
-        shipping_address=body.shipping_address,
+        shipping_cost=shipping_cost,
+        total=subtotal + shipping_cost,
+        shipping_address=shipping,
     )
     await db.orders.insert_one(order.model_dump())
     return order

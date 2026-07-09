@@ -2,12 +2,23 @@
 from tests.conftest import auth
 
 
-def register(client, email="user@example.com", password="secret123", name="User"):
-    resp = client.post(
-        "/api/auth/register",
-        json={"email": email, "password": password, "name": name},
-    )
-    return resp
+PROFILE = {
+    "first_name": "Juan",
+    "last_name": "Pérez",
+    "doc_type": "CC",
+    "doc_number": "1234567890",
+    "phone": "3001234567",
+    "address": "Calle 1 # 2-3",
+    "city": "Bogotá",
+    "region": "Cundinamarca",
+    "address_notes": "Apto 101",
+    "postal_code": "110111",
+}
+
+
+def register(client, email="user@example.com", password="secret123", **overrides):
+    body = {**PROFILE, "email": email, "password": password, **overrides}
+    return client.post("/api/auth/register", json=body)
 
 
 def test_health(client):
@@ -90,12 +101,6 @@ def _make_product(client, admin_token, price=100000, stock=10):
     ).json()
 
 
-ADDRESS = {
-    "full_name": "Juan Pérez",
-    "phone": "3001234567",
-    "address": "Calle 1 # 2-3",
-    "city": "Bogotá",
-}
 
 
 def test_order_flow_with_simulated_payment(client, db, admin_token):
@@ -107,7 +112,6 @@ def test_order_flow_with_simulated_payment(client, db, admin_token):
         headers=auth(token),
         json={
             "items": [{"product_id": product["id"], "quantity": 2}],
-            "shipping_address": ADDRESS,
         },
     )
     assert order_resp.status_code == 201
@@ -142,7 +146,6 @@ def test_order_rejects_insufficient_stock(client, db, admin_token):
         headers=auth(token),
         json={
             "items": [{"product_id": product["id"], "quantity": 5}],
-            "shipping_address": ADDRESS,
         },
     )
     assert resp.status_code == 409
@@ -156,7 +159,6 @@ def test_shipping_applied_below_threshold(client, db, admin_token):
         headers=auth(token),
         json={
             "items": [{"product_id": product["id"], "quantity": 1}],
-            "shipping_address": ADDRESS,
         },
     ).json()
     assert order["subtotal"] == 50000
@@ -172,7 +174,6 @@ def test_admin_stats_and_customers(client, db, admin_token):
         headers=auth(token),
         json={
             "items": [{"product_id": product["id"], "quantity": 1}],
-            "shipping_address": ADDRESS,
         },
     ).json()
     client.post(f"/api/payments/orders/{order['id']}/simulate", headers=auth(token))
@@ -221,7 +222,6 @@ def test_customer_export_xlsx(client, db, admin_token):
         headers=auth(token),
         json={
             "items": [{"product_id": product["id"], "quantity": 1}],
-            "shipping_address": ADDRESS,
         },
     ).json()
     client.post(f"/api/payments/orders/{order['id']}/simulate", headers=auth(token))
@@ -233,13 +233,48 @@ def test_customer_export_xlsx(client, db, admin_token):
     assert resp.content[:2] == b"PK"
 
 
-def test_register_with_phone(client, db):
+def test_register_captures_full_profile(client, db):
+    resp = register(client, email="ana@example.com", phone="3001112233")
+    assert resp.status_code == 201
+    user = resp.json()["user"]
+    assert user["phone"] == "3001112233"
+    assert user["name"] == "Juan Pérez"
+    assert user["doc_type"] == "CC"
+    assert user["doc_number"] == "1234567890"
+    assert user["city"] == "Bogotá"
+
+
+def test_order_requires_complete_profile(client, db, admin_token):
+    product = _make_product(client, admin_token)
+    # Register missing address/doc → profile incomplete.
     resp = client.post(
         "/api/auth/register",
-        json={"name": "Ana", "email": "ana@example.com", "password": "secret123", "phone": "3001112233"},
+        json={
+            "first_name": "Sin", "last_name": "Perfil", "doc_type": "CC",
+            "doc_number": "999", "phone": "3000000000", "address": "",
+            "city": "", "region": "", "email": "incompleto@example.com",
+            "password": "secret123",
+        },
     )
-    assert resp.status_code == 201
-    assert resp.json()["user"]["phone"] == "3001112233"
+    # Missing required address/city/region -> validation error at registration.
+    assert resp.status_code == 422
+
+
+def test_admin_confirm_payment(client, db, admin_token):
+    product = _make_product(client, admin_token)
+    token = register(client).json()["access_token"]
+    order = client.post(
+        "/api/orders",
+        headers=auth(token),
+        json={"items": [{"product_id": product["id"], "quantity": 1}]},
+    ).json()
+
+    confirmed = client.patch(
+        f"/api/admin/orders/{order['id']}/confirm-payment", headers=auth(admin_token)
+    )
+    assert confirmed.status_code == 200
+    assert confirmed.json()["payment_status"] == "approved"
+    assert confirmed.json()["status"] == "paid"
 
 
 def test_admin_updates_order_status(client, db, admin_token):
@@ -250,7 +285,6 @@ def test_admin_updates_order_status(client, db, admin_token):
         headers=auth(token),
         json={
             "items": [{"product_id": product["id"], "quantity": 1}],
-            "shipping_address": ADDRESS,
         },
     ).json()
 

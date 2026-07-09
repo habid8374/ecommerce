@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { CheckCircle2 } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import { formatCOP, formatDate, ORDER_STATUS, PAYMENT_STATUS } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,6 +36,7 @@ export default function AdminOrders() {
           params: { status: filter === "all" ? undefined : filter, page_size: 100 },
         })
       ).data,
+    refetchInterval: 12000, // live: new orders / payments appear automatically
   });
 
   const mutation = useMutation({
@@ -49,12 +51,28 @@ export default function AdminOrders() {
     onError: (err) => toast.error(apiError(err)),
   });
 
+  const confirmPayment = useMutation({
+    mutationFn: (id) => api.patch(`/admin/orders/${id}/confirm-payment`),
+    onSuccess: (res) => {
+      toast.success("Pago verificado");
+      setSelected(res.data);
+      qc.invalidateQueries({ queryKey: ["admin-orders"] });
+      qc.invalidateQueries({ queryKey: ["admin-stats"] });
+    },
+    onError: (err) => toast.error(apiError(err)),
+  });
+
   const orders = data?.items || [];
 
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">Pedidos</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">Pedidos</h1>
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" /> En vivo
+          </span>
+        </div>
         <Select value={filter} onValueChange={setFilter}>
           <SelectTrigger className="w-48" data-testid="orders-status-filter">
             <SelectValue />
@@ -121,12 +139,22 @@ export default function AdminOrders() {
               </DialogHeader>
               <div className="space-y-4">
                 <div className="rounded-lg bg-muted/50 p-4 text-sm">
-                  <p className="font-medium">{selected.shipping_address?.full_name}</p>
+                  <p className="font-medium">
+                    {selected.customer_name || selected.shipping_address?.full_name}
+                  </p>
+                  {(selected.doc_type || selected.doc_number) && (
+                    <p className="text-muted-foreground">
+                      {selected.doc_type} {selected.doc_number}
+                    </p>
+                  )}
                   <p className="text-muted-foreground">{selected.customer_email}</p>
                   <p className="text-muted-foreground">{selected.shipping_address?.phone}</p>
                   <p className="mt-1 text-muted-foreground">
                     {selected.shipping_address?.address}, {selected.shipping_address?.city}{" "}
                     {selected.shipping_address?.region}
+                    {selected.shipping_address?.postal_code
+                      ? ` · ${selected.shipping_address.postal_code}`
+                      : ""}
                   </p>
                   {selected.shipping_address?.notes && (
                     <p className="mt-1 italic text-muted-foreground">
@@ -150,15 +178,36 @@ export default function AdminOrders() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Pago</span>
-                  <span className="font-medium">
+                <div className="flex items-center justify-between rounded-lg border p-3 text-sm">
+                  <span className="text-muted-foreground">Estado del pago</span>
+                  <span
+                    className={`font-semibold ${
+                      selected.payment_status === "approved"
+                        ? "text-emerald-600"
+                        : selected.payment_status === "pending"
+                        ? "text-amber-600"
+                        : "text-red-600"
+                    }`}
+                  >
                     {PAYMENT_STATUS[selected.payment_status] || selected.payment_status}
                   </span>
                 </div>
 
+                {selected.payment_status !== "approved" && (
+                  <Button
+                    variant="outline"
+                    className="w-full border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                    disabled={confirmPayment.isPending}
+                    onClick={() => confirmPayment.mutate(selected.id)}
+                    data-testid="order-confirm-payment"
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    {confirmPayment.isPending ? "Verificando..." : "Marcar pago como verificado"}
+                  </Button>
+                )}
+
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Actualizar estado</label>
+                  <label className="text-sm font-medium">Actualizar estado del pedido</label>
                   <Select
                     value={selected.status}
                     onValueChange={(status) => mutation.mutate({ id: selected.id, status })}

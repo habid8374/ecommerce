@@ -37,6 +37,42 @@ class Role(str, Enum):
     admin = "admin"
 
 
+class DocType(str, Enum):
+    CC = "CC"    # Cédula de ciudadanía
+    CE = "CE"    # Cédula de extranjería
+    NIT = "NIT"  # NIT (empresas)
+    PP = "PP"    # Pasaporte
+    TI = "TI"    # Tarjeta de identidad
+
+
+class Profile(BaseModel):
+    """Full customer profile — captured at registration, reused at checkout
+    (including data required for the electronic invoice)."""
+    first_name: str = Field(min_length=1, max_length=80)
+    last_name: str = Field(min_length=1, max_length=80)
+    doc_type: DocType = DocType.CC
+    doc_number: str = Field(min_length=3, max_length=40)
+    phone: str = Field(min_length=3, max_length=40)
+    address: str = Field(min_length=3, max_length=300)
+    city: str = Field(min_length=1, max_length=120)
+    region: str = Field(min_length=1, max_length=120)  # Departamento
+    address_notes: str = Field(default="", max_length=300)
+    postal_code: str = Field(default="", max_length=20)
+
+
+class ProfileUpdate(BaseModel):
+    first_name: Optional[str] = Field(default=None, max_length=80)
+    last_name: Optional[str] = Field(default=None, max_length=80)
+    doc_type: Optional[DocType] = None
+    doc_number: Optional[str] = Field(default=None, max_length=40)
+    phone: Optional[str] = Field(default=None, max_length=40)
+    address: Optional[str] = Field(default=None, max_length=300)
+    city: Optional[str] = Field(default=None, max_length=120)
+    region: Optional[str] = Field(default=None, max_length=120)
+    address_notes: Optional[str] = Field(default=None, max_length=300)
+    postal_code: Optional[str] = Field(default=None, max_length=20)
+
+
 class UserPublic(BaseModel):
     # email is a plain str here (already validated at registration) so internal
     # domains like admin@company.local don't fail serialization.
@@ -44,15 +80,29 @@ class UserPublic(BaseModel):
     id: str
     email: str
     name: str
+    first_name: str = ""
+    last_name: str = ""
+    doc_type: Optional[DocType] = None
+    doc_number: str = ""
     phone: str = ""
+    address: str = ""
+    city: str = ""
+    region: str = ""
+    address_notes: str = ""
+    postal_code: str = ""
     role: Role
     created_at: datetime
 
+    @property
+    def profile_complete(self) -> bool:
+        return all([
+            self.first_name, self.last_name, self.doc_number,
+            self.phone, self.address, self.city, self.region,
+        ])
 
-class UserRegister(BaseModel):
+
+class UserRegister(Profile):
     email: EmailStr
-    name: str = Field(min_length=1, max_length=120)
-    phone: str = Field(default="", max_length=40)
     password: str = Field(min_length=6, max_length=128)
 
 
@@ -146,6 +196,7 @@ class ShippingAddress(BaseModel):
     city: str = Field(min_length=1, max_length=120)
     region: str = Field(default="", max_length=120)
     notes: str = Field(default="", max_length=500)
+    postal_code: str = Field(default="", max_length=20)
 
 
 class CartItemIn(BaseModel):
@@ -154,8 +205,9 @@ class CartItemIn(BaseModel):
 
 
 class OrderCreate(BaseModel):
+    # Shipping/invoice data comes from the customer's saved profile, so the
+    # checkout only needs the cart items.
     items: List[CartItemIn] = Field(min_length=1)
-    shipping_address: ShippingAddress
 
 
 class OrderItem(BaseModel):
@@ -172,6 +224,10 @@ class Order(BaseModel):
     reference: str = Field(default_factory=lambda: _uuid().replace("-", ""))
     user_id: Optional[str] = None
     customer_email: str = ""
+    customer_name: str = ""
+    # Invoice identity (from the profile).
+    doc_type: Optional[DocType] = None
+    doc_number: str = ""
     items: List[OrderItem] = Field(default_factory=list)
     subtotal: int = 0
     shipping_cost: int = 0

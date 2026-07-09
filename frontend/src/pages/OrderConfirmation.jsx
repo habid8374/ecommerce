@@ -22,8 +22,10 @@ export default function OrderConfirmation() {
         return (await api.get(`/orders/${id}`)).data;
       }
     },
+    // Poll faster while awaiting payment, then keep a slower live refresh so the
+    // customer sees status changes (en preparación → enviado → entregado).
     refetchInterval: (query) =>
-      query.state.data?.payment_status === "pending" ? 4000 : false,
+      query.state.data?.payment_status === "pending" ? 4000 : 15000,
   });
 
   if (isLoading) {

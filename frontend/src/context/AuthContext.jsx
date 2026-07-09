@@ -38,9 +38,15 @@ export function AuthProvider({ children }) {
     return handleAuth(data);
   };
 
-  const register = async (name, email, password, phone = "") => {
-    const { data } = await api.post("/auth/register", { name, email, password, phone });
+  const register = async (payload) => {
+    const { data } = await api.post("/auth/register", payload);
     return handleAuth(data);
+  };
+
+  const updateProfile = async (payload) => {
+    const { data } = await api.put("/auth/me", payload);
+    setUser(data);
+    return data;
   };
 
   const logout = () => {
@@ -50,7 +56,15 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, register, logout, isAdmin: user?.role === "admin" }}
+      value={{
+        user,
+        loading,
+        login,
+        register,
+        updateProfile,
+        logout,
+        isAdmin: user?.role === "admin",
+      }}
     >
       {children}
     </AuthContext.Provider>

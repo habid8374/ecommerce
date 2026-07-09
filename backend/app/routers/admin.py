@@ -71,6 +71,29 @@ async def update_order_status(
     return Order(**order)
 
 
+@router.patch("/orders/{order_id}/confirm-payment", response_model=Order)
+async def confirm_payment(order_id: str, _: UserPublic = Depends(get_current_admin)):
+    """Manually mark a payment as verified (e.g. bank transfer / cash), in
+    addition to the automatic Wompi webhook. Decrements stock once, idempotent."""
+    from .orders import mark_order_paid
+
+    db = get_db()
+    order = await db.orders.find_one({"id": order_id}, PROJECT)
+    if not order:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pedido no encontrado")
+    await mark_order_paid(db, order, order.get("wompi_transaction_id") or "MANUAL")
+    order = await db.orders.find_one({"id": order_id}, PROJECT)
+    return Order(**order)
+
+
+@router.get("/orders/pending-count")
+async def pending_payment_count(_: UserPublic = Depends(get_current_admin)):
+    """Orders awaiting payment verification — used for the live admin badge."""
+    db = get_db()
+    n = await db.orders.count_documents({"payment_status": PaymentStatus.pending.value})
+    return {"pending_payment": n}
+
+
 # --- Dashboard ------------------------------------------------------------
 @router.get("/stats", response_model=DashboardStats)
 async def dashboard_stats(_: UserPublic = Depends(get_current_admin)):

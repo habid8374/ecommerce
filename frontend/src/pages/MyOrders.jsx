@@ -11,6 +11,7 @@ export default function MyOrders() {
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["my-orders"],
     queryFn: async () => (await api.get("/orders/mine")).data,
+    refetchInterval: 15000, // live status updates
   });
 
   if (isLoading) {

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { apiError } from "@/lib/api";
 import { LogoMark } from "@/components/Logo";
+import ProfileFields, { EMPTY_PROFILE } from "@/components/ProfileFields";
 import { REGISTER } from "@/constants/testIds";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,25 +14,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", confirm: "" });
+  const [profile, setProfile] = useState({ ...EMPTY_PROFILE });
+  const [account, setAccount] = useState({ email: "", password: "", confirm: "" });
   const [loading, setLoading] = useState(false);
 
-  const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const onProfile = (key, value) => setProfile((p) => ({ ...p, [key]: value }));
+  const onAccount = (key) => (e) => setAccount((a) => ({ ...a, [key]: e.target.value }));
 
   const submit = async (e) => {
     e.preventDefault();
-    if (form.password !== form.confirm) {
+    if (account.password !== account.confirm) {
       toast.error("Las contraseñas no coinciden");
       return;
     }
-    if (form.password.length < 6) {
+    if (account.password.length < 6) {
       toast.error("La contraseña debe tener al menos 6 caracteres");
       return;
     }
     setLoading(true);
     try {
-      await register(form.name, form.email, form.password, form.phone);
-      toast.success("Cuenta creada");
+      await register({ ...profile, email: account.email, password: account.password });
+      toast.success("Cuenta creada. ¡Bienvenido!");
       navigate("/", { replace: true });
     } catch (err) {
       toast.error(apiError(err, "No se pudo crear la cuenta"));
@@ -41,7 +44,7 @@ export default function Register() {
   };
 
   return (
-    <div className="mx-auto max-w-md py-10">
+    <div className="mx-auto max-w-2xl py-10">
       <div className="mb-6 flex items-center justify-center gap-3">
         <span className="rounded-xl bg-black p-2">
           <LogoMark size={30} />
@@ -50,33 +53,40 @@ export default function Register() {
           GRAFI<span className="text-primary">BLESS</span>
         </span>
       </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">Crear cuenta</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Completa tus datos una sola vez. Los usaremos para tu factura y para
+            el envío, así tu compra es más rápida.
+          </p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={submit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nombre</Label>
-              <Input id="name" required value={form.name} onChange={update("name")} data-testid={REGISTER.nameInput} />
+          <form onSubmit={submit} className="space-y-6">
+            <ProfileFields values={profile} onChange={onProfile} />
+
+            <div>
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Datos de acceso
+              </h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="email">Correo *</Label>
+                  <Input id="email" type="email" required value={account.email} onChange={onAccount("email")} data-testid={REGISTER.emailInput} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Contraseña *</Label>
+                  <Input id="password" type="password" required value={account.password} onChange={onAccount("password")} data-testid={REGISTER.passwordInput} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm">Confirmar contraseña *</Label>
+                  <Input id="confirm" type="password" required value={account.confirm} onChange={onAccount("confirm")} data-testid={REGISTER.passwordConfirmInput} />
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Correo</Label>
-              <Input id="email" type="email" required value={form.email} onChange={update("email")} data-testid={REGISTER.emailInput} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Teléfono / WhatsApp</Label>
-              <Input id="phone" type="tel" value={form.phone} onChange={update("phone")} placeholder="3001234567" data-testid="register-phone-input" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input id="password" type="password" required value={form.password} onChange={update("password")} data-testid={REGISTER.passwordInput} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirm">Confirmar contraseña</Label>
-              <Input id="confirm" type="password" required value={form.confirm} onChange={update("confirm")} data-testid={REGISTER.passwordConfirmInput} />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading} data-testid={REGISTER.submitButton}>
+
+            <Button type="submit" className="w-full" size="lg" disabled={loading} data-testid={REGISTER.submitButton}>
               {loading ? "Creando..." : "Crear cuenta"}
             </Button>
           </form>
