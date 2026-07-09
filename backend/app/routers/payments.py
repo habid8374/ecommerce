@@ -93,17 +93,24 @@ async def wompi_webhook(request: Request):
 
 
 @router.get("/orders/{order_id}/verify", response_model=Order)
-async def verify_order(order_id: str, user: UserPublic = Depends(get_current_user)):
+async def verify_order(
+    order_id: str,
+    transaction_id: str | None = None,
+    user: UserPublic = Depends(get_current_user),
+):
     """Pull the transaction status from Wompi and reconcile the order.
 
-    Useful right after the redirect, before/if the webhook has landed.
+    `transaction_id` is the `id` Wompi appends to the redirect URL after payment,
+    so the order confirms as soon as the customer returns — even if the webhook
+    hasn't (or never) arrives. Falls back to the id stored by the webhook.
     """
     order = await _load_owned_order(order_id, user)
     db = get_db()
-    tx_id = order.get("wompi_transaction_id")
+    tx_id = transaction_id or order.get("wompi_transaction_id")
     if config.PAYMENTS_ENABLED and tx_id:
         tx = wompi.fetch_transaction(tx_id)
-        if tx:
+        # Only trust the transaction if its reference matches this order.
+        if tx and tx.get("reference") == order.get("reference"):
             mapped = _STATUS_MAP.get(tx.get("status"))
             if mapped == PaymentStatus.approved:
                 await mark_order_paid(db, order, tx_id)

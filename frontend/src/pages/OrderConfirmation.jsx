@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, useSearchParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
@@ -10,14 +10,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function OrderConfirmation() {
   const { id } = useParams();
+  const [params] = useSearchParams();
+  // Wompi appends ?id=<transaction_id> to the redirect URL after payment.
+  const transactionId = params.get("id");
 
   // Try to reconcile against Wompi first (no-op in simulated mode); fall back
   // to a plain read if verification isn't available.
   const { data: order, isLoading } = useQuery({
-    queryKey: ["order-confirm", id],
+    queryKey: ["order-confirm", id, transactionId],
     queryFn: async () => {
       try {
-        return (await api.get(`/payments/orders/${id}/verify`)).data;
+        const q = transactionId ? `?transaction_id=${encodeURIComponent(transactionId)}` : "";
+        return (await api.get(`/payments/orders/${id}/verify${q}`)).data;
       } catch {
         return (await api.get(`/orders/${id}`)).data;
       }
