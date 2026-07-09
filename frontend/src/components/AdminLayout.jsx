@@ -1,11 +1,6 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
-import {
-  LayoutDashboard,
-  Package,
-  ShoppingBag,
-  Users,
-  Store,
-} from "lucide-react";
+import { LayoutDashboard, Package, ShoppingBag, Users, Store } from "lucide-react";
+import Logo from "@/components/Logo";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -19,7 +14,12 @@ export default function AdminLayout() {
   return (
     <div className="flex min-h-screen bg-muted/30">
       <aside className="hidden w-60 flex-col border-r bg-background p-4 md:flex">
-        <div className="mb-6 px-2 text-lg font-bold">Admin</div>
+        <Link to="/admin" className="mb-6 px-2 pt-1">
+          <Logo size={26} />
+        </Link>
+        <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Panel de administración
+        </p>
         <nav className="flex flex-col gap-1">
           {NAV.map(({ to, end, label, icon: Icon }) => (
             <NavLink
