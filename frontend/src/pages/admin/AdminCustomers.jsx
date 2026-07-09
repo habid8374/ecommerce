@@ -1,19 +1,32 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { FileSpreadsheet } from "lucide-react";
+import { FileSpreadsheet, Eye } from "lucide-react";
 import { api, apiError } from "@/lib/api";
-import { formatCOP, formatDate } from "@/lib/format";
+import { formatCOP, formatDate, ORDER_STATUS } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function AdminCustomers() {
   const [exporting, setExporting] = useState(false);
+  const [openId, setOpenId] = useState(null);
 
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ["admin-customers"],
     queryFn: async () => (await api.get("/admin/customers")).data,
+  });
+
+  const { data: detail } = useQuery({
+    queryKey: ["customer-detail", openId],
+    queryFn: async () => (await api.get(`/admin/customers/${openId}`)).data,
+    enabled: !!openId,
   });
 
   const exportExcel = async () => {
@@ -66,6 +79,7 @@ export default function AdminCustomers() {
                   <th className="px-4 py-3">Registro</th>
                   <th className="px-4 py-3 text-center">Pedidos</th>
                   <th className="px-4 py-3 text-right">Total gastado</th>
+                  <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -80,6 +94,11 @@ export default function AdminCustomers() {
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(c.created_at)}</td>
                     <td className="px-4 py-3 text-center">{c.orders_count}</td>
                     <td className="px-4 py-3 text-right font-semibold">{formatCOP(c.total_spent)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <Button variant="ghost" size="sm" onClick={() => setOpenId(c.id)} data-testid="customer-view">
+                        <Eye className="mr-1 h-4 w-4" /> Ver
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -87,6 +106,79 @@ export default function AdminCustomers() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={!!openId} onOpenChange={(o) => !o && setOpenId(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          {detail ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>{detail.user.name}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 text-sm">
+                <div className="rounded-lg bg-muted/50 p-4">
+                  <p className="text-muted-foreground">{detail.user.doc_type} {detail.user.doc_number}</p>
+                  <p className="text-muted-foreground">{detail.user.email}</p>
+                  <p className="text-muted-foreground">{detail.user.phone}</p>
+                  <p className="mt-1 text-muted-foreground">
+                    {detail.user.address}, {detail.user.city} {detail.user.region}
+                    {detail.user.postal_code ? ` · ${detail.user.postal_code}` : ""}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Registrado: {formatDate(detail.user.created_at)}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-lg border p-2">
+                    <p className="text-lg font-bold">{detail.stats.orders_count}</p>
+                    <p className="text-xs text-muted-foreground">Pedidos</p>
+                  </div>
+                  <div className="rounded-lg border p-2">
+                    <p className="text-lg font-bold">{detail.stats.paid_count}</p>
+                    <p className="text-xs text-muted-foreground">Pagados</p>
+                  </div>
+                  <div className="rounded-lg border p-2">
+                    <p className="text-lg font-bold">{formatCOP(detail.stats.total_spent)}</p>
+                    <p className="text-xs text-muted-foreground">Gastado</p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 font-medium">Historial de pedidos</p>
+                  {detail.orders.length === 0 ? (
+                    <p className="text-muted-foreground">Sin pedidos.</p>
+                  ) : (
+                    <div className="divide-y">
+                      {detail.orders.map((o) => {
+                        const st = ORDER_STATUS[o.status];
+                        return (
+                          <div key={o.id} className="flex items-center justify-between py-2">
+                            <div>
+                              <span className="font-mono text-xs">#{o.id.slice(0, 8)}</span>
+                              <p className="text-xs text-muted-foreground">{formatDate(o.created_at)}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`rounded-full border px-2 py-0.5 text-xs ${st?.className}`}>
+                                {st?.label}
+                              </span>
+                              <span className="font-semibold">{formatCOP(o.total)}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3 py-4">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

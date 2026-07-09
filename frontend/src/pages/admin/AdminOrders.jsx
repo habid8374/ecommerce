@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 
 const STATUSES = Object.keys(ORDER_STATUS);
 
@@ -30,6 +31,15 @@ export default function AdminOrders() {
   const confirm = useConfirm();
   const [filter, setFilter] = useState("all");
   const [selected, setSelected] = useState(null);
+  const [ship, setShip] = useState({ carrier_name: "", tracking_number: "" });
+
+  useEffect(() => {
+    if (selected)
+      setShip({
+        carrier_name: selected.carrier_name || "",
+        tracking_number: selected.tracking_number || "",
+      });
+  }, [selected]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-orders", filter],
@@ -61,6 +71,16 @@ export default function AdminOrders() {
       setSelected(res.data);
       qc.invalidateQueries({ queryKey: ["admin-orders"] });
       qc.invalidateQueries({ queryKey: ["admin-stats"] });
+    },
+    onError: (err) => toast.error(apiError(err)),
+  });
+
+  const saveShipping = useMutation({
+    mutationFn: () => api.patch(`/admin/orders/${selected.id}/shipping`, ship),
+    onSuccess: (res) => {
+      toast.success("Datos de envío guardados");
+      setSelected(res.data);
+      qc.invalidateQueries({ queryKey: ["admin-orders"] });
     },
     onError: (err) => toast.error(apiError(err)),
   });
@@ -181,6 +201,41 @@ export default function AdminOrders() {
                     <p className="mt-1 italic text-muted-foreground">
                       “{selected.shipping_address.notes}”
                     </p>
+                  )}
+                </div>
+
+                {/* Shipping */}
+                <div className="space-y-2 rounded-lg border p-3 text-sm">
+                  <p className="font-medium">
+                    Envío:{" "}
+                    {selected.shipping_method === "local"
+                      ? `Domicilio local — ${selected.shipping_zone || "—"}`
+                      : "Transportadora (nacional)"}
+                  </p>
+                  {selected.shipping_method !== "local" && (
+                    <div className="space-y-2">
+                      <Input
+                        placeholder="Transportadora (ej: Servientrega)"
+                        value={ship.carrier_name}
+                        onChange={(e) => setShip((s) => ({ ...s, carrier_name: e.target.value }))}
+                        data-testid="order-carrier-name"
+                      />
+                      <Input
+                        placeholder="Número de guía"
+                        value={ship.tracking_number}
+                        onChange={(e) => setShip((s) => ({ ...s, tracking_number: e.target.value }))}
+                        data-testid="order-tracking-number"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={saveShipping.isPending}
+                        onClick={() => saveShipping.mutate()}
+                        data-testid="order-save-shipping"
+                      >
+                        {saveShipping.isPending ? "Guardando..." : "Guardar transportadora y guía"}
+                      </Button>
+                    </div>
                   )}
                 </div>
 

@@ -43,9 +43,30 @@ DEFAULTS = {
         "phone": "",
         "email": "",
     },
+    # Factus electronic invoicing (DIAN). Filled in from the admin panel.
+    "factus": {
+        "enabled": False,
+        "base_url": "https://api-sandbox.factus.com.co",
+        "email": "",
+        "password": "",
+        "client_id": "",
+        "client_secret": "",
+        "numbering_range_id": 0,
+        "default_iva": 0,  # % IVA applied to items (0 or 19)
+    },
     "shipping": {
-        "cost": config.SHIPPING_COST,
+        # Free national (carrier) shipping over this subtotal (0 disables it).
         "free_over": config.FREE_SHIPPING_OVER,
+        # Cost of national shipping by carrier (0 = "por cobrar / contraentrega").
+        "carrier_cost": 0,
+        # Local delivery zones (Barranquilla metro area) with their price.
+        "local_zones": [
+            {"name": "Barranquilla", "price": 8000},
+            {"name": "Soledad", "price": 9000},
+            {"name": "Puerto Colombia", "price": 12000},
+            {"name": "Galapa", "price": 12000},
+            {"name": "Malambo", "price": 13000},
+        ],
     },
 }
 

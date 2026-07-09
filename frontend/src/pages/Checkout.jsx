@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CreditCard, Pencil, MapPin, FileText } from "lucide-react";
+import { CreditCard, Pencil, MapPin, FileText, Truck, Home } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import { formatCOP } from "@/lib/format";
 import { useCart } from "@/context/CartContext";
@@ -9,6 +10,14 @@ import { useAuth } from "@/context/AuthContext";
 import ProfileFields, { DOC_TYPES } from "@/components/ProfileFields";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const REQUIRED = ["first_name", "last_name", "doc_number", "phone", "address", "city", "region"];
 
@@ -39,6 +48,25 @@ export default function Checkout() {
   const [form, setForm] = useState(pickProfile(user));
   const [saving, setSaving] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [method, setMethod] = useState("carrier");
+  const [zone, setZone] = useState("");
+
+  const { data: pub } = useQuery({
+    queryKey: ["public-settings"],
+    queryFn: async () => (await api.get("/settings/public")).data,
+  });
+  const ship = pub?.shipping || {};
+  const zones = ship.local_zones || [];
+
+  let shippingCost = 0;
+  if (method === "local") {
+    shippingCost = zones.find((z) => z.name === zone)?.price ?? 0;
+  } else {
+    const freeOver = ship.free_over || 0;
+    shippingCost = freeOver && subtotal >= freeOver ? 0 : ship.carrier_cost || 0;
+  }
+  const total = subtotal + shippingCost;
+  const canPay = !editing && (method === "carrier" || (method === "local" && zone));
 
   if (items.length === 0) return <Navigate to="/cart" replace />;
 
@@ -63,6 +91,8 @@ export default function Checkout() {
     try {
       const { data: order } = await api.post("/orders", {
         items: items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
+        shipping_method: method,
+        shipping_zone: method === "local" ? zone : "",
       });
       const { data: intent } = await api.post(`/payments/orders/${order.id}/intent`);
 
@@ -159,30 +189,90 @@ export default function Checkout() {
                   <span className="shrink-0">{formatCOP(i.price * i.quantity)}</span>
                 </div>
               ))}
+              {/* Shipping method */}
               <div className="border-t pt-3">
-                <div className="flex justify-between text-sm text-muted-foreground">
+                <p className="mb-2 text-sm font-medium">Método de envío</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMethod("carrier")}
+                    className={cn(
+                      "flex flex-col items-center gap-1 rounded-lg border p-3 text-xs",
+                      method === "carrier" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-accent"
+                    )}
+                    data-testid="ship-carrier"
+                  >
+                    <Truck className="h-5 w-5" /> Transportadora
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMethod("local")}
+                    className={cn(
+                      "flex flex-col items-center gap-1 rounded-lg border p-3 text-xs",
+                      method === "local" ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-accent"
+                    )}
+                    data-testid="ship-local"
+                  >
+                    <Home className="h-5 w-5" /> Domicilio local
+                  </button>
+                </div>
+                {method === "local" && (
+                  <div className="mt-2">
+                    <Select value={zone} onValueChange={setZone}>
+                      <SelectTrigger data-testid="ship-zone">
+                        <SelectValue placeholder="Elige tu zona" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {zones.map((z) => (
+                          <SelectItem key={z.name} value={z.name}>
+                            {z.name} — {formatCOP(z.price)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {method === "carrier" && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Envío nacional por transportadora. Te compartiremos la guía cuando despachemos.
+                  </p>
+                )}
+              </div>
+
+              <div className="border-t pt-3 text-sm">
+                <div className="flex justify-between text-muted-foreground">
                   <span>Subtotal</span>
                   <span>{formatCOP(subtotal)}</span>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Envío gratis en compras superiores a {formatCOP(150000)}.
-                </p>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Envío</span>
+                  <span>{shippingCost === 0 ? (method === "carrier" ? "Por cobrar / gratis" : "Gratis") : formatCOP(shippingCost)}</span>
+                </div>
+                <div className="mt-1 flex justify-between text-base font-bold">
+                  <span>Total</span>
+                  <span>{formatCOP(total)}</span>
+                </div>
               </div>
+
               <Button
                 className="mt-2 w-full"
                 size="lg"
-                disabled={paying || editing}
+                disabled={paying || !canPay}
                 onClick={pay}
                 data-testid="checkout-pay-button"
               >
                 <CreditCard className="mr-2 h-5 w-5" />
                 {paying ? "Procesando..." : "Pagar con Wompi"}
               </Button>
-              {editing && (
+              {editing ? (
                 <p className="text-center text-xs text-muted-foreground">
                   Guarda tus datos para continuar al pago.
                 </p>
-              )}
+              ) : method === "local" && !zone ? (
+                <p className="text-center text-xs text-muted-foreground">
+                  Selecciona tu zona de domicilio.
+                </p>
+              ) : null}
             </CardContent>
           </Card>
         </div>

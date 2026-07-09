@@ -12,9 +12,12 @@ public_router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 @public_router.get("/public")
 async def public_settings_view():
-    """Non-secret settings (company data) used e.g. on the printable order."""
+    """Non-secret settings (company + shipping) for the storefront/print."""
     settings = await get_settings()
-    return {"company": settings.get("company", {})}
+    return {
+        "company": settings.get("company", {}),
+        "shipping": settings.get("shipping", {}),
+    }
 
 
 @router.get("")

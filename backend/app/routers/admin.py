@@ -13,6 +13,7 @@ from ..models import (
     DashboardStats,
     Order,
     OrderStatus,
+    OrderShippingUpdate,
     OrderStatusUpdate,
     PaymentStatus,
     UserPublic,
@@ -75,6 +76,26 @@ async def update_order_status(
         await send_status_changed(order, body.status.value)
     except Exception:  # noqa: BLE001
         pass
+    return Order(**order)
+
+
+@router.patch("/orders/{order_id}/shipping", response_model=Order)
+async def update_order_shipping(
+    order_id: str, body: OrderShippingUpdate, _: UserPublic = Depends(get_current_admin)
+):
+    """Set the carrier name and tracking/guide number (for national shipping)."""
+    db = get_db()
+    result = await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {
+            "carrier_name": body.carrier_name.strip(),
+            "tracking_number": body.tracking_number.strip(),
+            "updated_at": _now(),
+        }},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pedido no encontrado")
+    order = await db.orders.find_one({"id": order_id}, PROJECT)
     return Order(**order)
 
 
@@ -343,3 +364,26 @@ async def export_customers(_: UserPublic = Depends(get_current_admin)):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# Parametric route declared AFTER /customers/export so it doesn't shadow it.
+@router.get("/customers/{customer_id}")
+async def customer_detail(customer_id: str, _: UserPublic = Depends(get_current_admin)):
+    """Full 360 view: the customer's profile and everything they created (orders)."""
+    db = get_db()
+    user = await db.users.find_one({"id": customer_id}, {"_id": 0, "password": 0})
+    if not user:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Cliente no encontrado")
+    orders = await db.orders.find({"user_id": customer_id}, PROJECT).sort(
+        "created_at", -1
+    ).to_list(1000)
+    paid = [o for o in orders if o.get("payment_status") == PaymentStatus.approved.value]
+    return {
+        "user": user,
+        "orders": [Order(**o) for o in orders],
+        "stats": {
+            "orders_count": len(orders),
+            "paid_count": len(paid),
+            "total_spent": sum(o.get("total", 0) for o in paid),
+        },
+    }

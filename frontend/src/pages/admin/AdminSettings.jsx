@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Save, CreditCard, Mail, Building2, Truck } from "lucide-react";
+import { Save, CreditCard, Mail, Building2, Truck, Plus, Trash2, FileText } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -169,6 +169,35 @@ export default function AdminSettings() {
         </CardContent>
       </Card>
 
+      {/* Factus (electronic invoicing) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" /> Facturación electrónica (Factus / DIAN)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Switch checked={form.factus?.enabled} onCheckedChange={set("factus.enabled")} />
+            <Label>Emitir factura electrónica automáticamente al aprobarse el pago</Label>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="URL base de Factus" value={form.factus?.base_url || ""} onChange={inp("factus.base_url")} placeholder="https://api-sandbox.factus.com.co" />
+            <Field label="Rango de numeración (numbering_range_id)" type="number" value={form.factus?.numbering_range_id || 0} onChange={(e) => set("factus.numbering_range_id")(Number(e.target.value))} />
+            <Field label="Email (usuario Factus)" value={form.factus?.email || ""} onChange={inp("factus.email")} />
+            <Field label="Contraseña" type="password" value={form.factus?.password || ""} onChange={inp("factus.password")} />
+            <Field label="Client ID" value={form.factus?.client_id || ""} onChange={inp("factus.client_id")} />
+            <Field label="Client Secret" type="password" value={form.factus?.client_secret || ""} onChange={inp("factus.client_secret")} />
+            <Field label="IVA por defecto (%)" type="number" value={form.factus?.default_iva || 0} onChange={(e) => set("factus.default_iva")(Number(e.target.value))} />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Con estas credenciales el sistema emitirá la factura al confirmarse el pago
+            y la enviará al correo del cliente. Las notas crédito/débito se gestionan
+            desde el detalle del pedido.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Shipping */}
       <Card>
         <CardHeader>
@@ -176,9 +205,83 @@ export default function AdminSettings() {
             <Truck className="h-5 w-5" /> Envíos
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
-          <Field label="Costo de envío (COP)" type="number" value={form.shipping.cost} onChange={(e) => set("shipping.cost")(Number(e.target.value))} />
-          <Field label="Envío gratis desde (COP)" type="number" value={form.shipping.free_over} onChange={(e) => set("shipping.free_over")(Number(e.target.value))} />
+        <CardContent className="space-y-6">
+          <div>
+            <p className="mb-3 text-sm font-semibold">Transportadora (nacional)</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Costo transportadora (COP) — 0 = por cobrar" type="number" value={form.shipping.carrier_cost} onChange={(e) => set("shipping.carrier_cost")(Number(e.target.value))} />
+              <Field label="Envío gratis desde (COP)" type="number" value={form.shipping.free_over} onChange={(e) => set("shipping.free_over")(Number(e.target.value))} />
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm font-semibold">Domicilio local (zonas y valor)</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setForm((f) => {
+                    const next = structuredClone(f);
+                    next.shipping.local_zones = [...(next.shipping.local_zones || []), { name: "", price: 0 }];
+                    return next;
+                  })
+                }
+              >
+                <Plus className="mr-2 h-4 w-4" /> Agregar zona
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {(form.shipping.local_zones || []).map((z, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input
+                    className="flex-1"
+                    placeholder="Zona (ej: Barranquilla)"
+                    value={z.name}
+                    onChange={(e) =>
+                      setForm((f) => {
+                        const next = structuredClone(f);
+                        next.shipping.local_zones[i].name = e.target.value;
+                        return next;
+                      })
+                    }
+                  />
+                  <Input
+                    className="w-36"
+                    type="number"
+                    placeholder="Valor"
+                    value={z.price}
+                    onChange={(e) =>
+                      setForm((f) => {
+                        const next = structuredClone(f);
+                        next.shipping.local_zones[i].price = Number(e.target.value);
+                        return next;
+                      })
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() =>
+                      setForm((f) => {
+                        const next = structuredClone(f);
+                        next.shipping.local_zones.splice(i, 1);
+                        return next;
+                      })
+                    }
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              El cliente elegirá "Domicilio local" y su zona; se cobrará el valor de esa zona.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

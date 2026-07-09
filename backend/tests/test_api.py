@@ -151,7 +151,7 @@ def test_order_rejects_insufficient_stock(client, db, admin_token):
     assert resp.status_code == 409
 
 
-def test_shipping_applied_below_threshold(client, db, admin_token):
+def test_local_delivery_zone_pricing(client, db, admin_token):
     product = _make_product(client, admin_token, price=50000, stock=10)
     token = register(client).json()["access_token"]
     order = client.post(
@@ -159,11 +159,47 @@ def test_shipping_applied_below_threshold(client, db, admin_token):
         headers=auth(token),
         json={
             "items": [{"product_id": product["id"], "quantity": 1}],
+            "shipping_method": "local",
+            "shipping_zone": "Barranquilla",
         },
     ).json()
-    assert order["subtotal"] == 50000
-    assert order["shipping_cost"] > 0
-    assert order["total"] == 50000 + order["shipping_cost"]
+    assert order["shipping_method"] == "local"
+    assert order["shipping_zone"] == "Barranquilla"
+    assert order["shipping_cost"] == 8000  # default zone price
+    assert order["total"] == 58000
+
+
+def test_local_delivery_requires_valid_zone(client, db, admin_token):
+    product = _make_product(client, admin_token, price=50000, stock=10)
+    token = register(client).json()["access_token"]
+    resp = client.post(
+        "/api/orders",
+        headers=auth(token),
+        json={
+            "items": [{"product_id": product["id"], "quantity": 1}],
+            "shipping_method": "local",
+            "shipping_zone": "Ciudad Inexistente",
+        },
+    )
+    assert resp.status_code == 400
+
+
+def test_admin_sets_carrier_and_guide(client, db, admin_token):
+    product = _make_product(client, admin_token)
+    token = register(client).json()["access_token"]
+    order = client.post(
+        "/api/orders",
+        headers=auth(token),
+        json={"items": [{"product_id": product["id"], "quantity": 1}], "shipping_method": "carrier"},
+    ).json()
+    resp = client.patch(
+        f"/api/admin/orders/{order['id']}/shipping",
+        headers=auth(admin_token),
+        json={"carrier_name": "Servientrega", "tracking_number": "SE123456"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["carrier_name"] == "Servientrega"
+    assert resp.json()["tracking_number"] == "SE123456"
 
 
 def test_admin_stats_and_customers(client, db, admin_token):

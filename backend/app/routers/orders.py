@@ -120,13 +120,24 @@ async def create_order(body: OrderCreate, user: UserPublic = Depends(get_current
             )
         )
 
-    # Shipping cost from system settings (falls back to env defaults).
+    # Shipping cost from system settings, by chosen method.
     from ..services.settings_store import get_settings
 
     ship = (await get_settings()).get("shipping", {})
     free_over = ship.get("free_over", config.FREE_SHIPPING_OVER)
-    flat = ship.get("cost", config.SHIPPING_COST)
-    shipping_cost = 0 if (subtotal <= 0 or subtotal >= free_over) else flat
+    method = body.shipping_method
+    zone = ""
+    if method.value == "local":
+        zones = {z["name"]: int(z["price"]) for z in ship.get("local_zones", [])}
+        if body.shipping_zone not in zones:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "Selecciona una zona de domicilio válida."
+            )
+        zone = body.shipping_zone
+        shipping_cost = zones[zone]
+    else:  # carrier (nacional)
+        carrier_cost = int(ship.get("carrier_cost", 0))
+        shipping_cost = 0 if (subtotal <= 0 or (free_over and subtotal >= free_over)) else carrier_cost
 
     order = Order(
         user_id=user.id,
@@ -138,6 +149,8 @@ async def create_order(body: OrderCreate, user: UserPublic = Depends(get_current
         subtotal=subtotal,
         shipping_cost=shipping_cost,
         total=subtotal + shipping_cost,
+        shipping_method=method,
+        shipping_zone=zone,
         shipping_address=shipping,
     )
     await db.orders.insert_one(order.model_dump())

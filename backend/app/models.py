@@ -204,10 +204,22 @@ class CartItemIn(BaseModel):
     quantity: int = Field(ge=1, le=999)
 
 
+class ShippingMethod(str, Enum):
+    carrier = "carrier"  # Transportadora (nacional)
+    local = "local"      # Domicilio local (área metropolitana)
+
+
 class OrderCreate(BaseModel):
     # Shipping/invoice data comes from the customer's saved profile, so the
-    # checkout only needs the cart items.
+    # checkout only needs the cart items and the chosen shipping method.
     items: List[CartItemIn] = Field(min_length=1)
+    shipping_method: ShippingMethod = ShippingMethod.carrier
+    shipping_zone: str = ""  # required when shipping_method == local
+
+
+class OrderShippingUpdate(BaseModel):
+    carrier_name: str = Field(default="", max_length=120)
+    tracking_number: str = Field(default="", max_length=120)
 
 
 class OrderItem(BaseModel):
@@ -232,6 +244,11 @@ class Order(BaseModel):
     subtotal: int = 0
     shipping_cost: int = 0
     total: int = 0
+    # Shipping method + fulfillment tracking.
+    shipping_method: ShippingMethod = ShippingMethod.carrier
+    shipping_zone: str = ""
+    carrier_name: str = ""
+    tracking_number: str = ""
     status: OrderStatus = OrderStatus.pending
     payment_status: PaymentStatus = PaymentStatus.pending
     payment_provider: str = "wompi"

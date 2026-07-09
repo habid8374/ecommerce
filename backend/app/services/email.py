@@ -122,10 +122,19 @@ async def send_status_changed(order: dict, new_status: str) -> None:
     ref = order["id"][:8]
     label = STATUS_LABELS.get(new_status, new_status)
     msg = STATUS_MESSAGES.get(new_status, f"El estado de tu pedido cambió a: {label}.")
+    tracking = ""
+    if new_status == "shipped" and (order.get("carrier_name") or order.get("tracking_number")):
+        parts = []
+        if order.get("carrier_name"):
+            parts.append(f"Transportadora: <b>{order['carrier_name']}</b>")
+        if order.get("tracking_number"):
+            parts.append(f"Guía: <b>{order['tracking_number']}</b>")
+        tracking = "<p>" + " · ".join(parts) + "</p>"
     body = f"""
       <p>Hola {order.get('customer_name') or ''},</p>
       <p>{msg}</p>
       <p>Pedido <b>#{ref}</b> — Estado actual: <b style="color:#1e5eff">{label}</b></p>
+      {tracking}
     """
     html = _layout(company, "Actualización de tu pedido", body)
     await send_email(order.get("customer_email"), order.get("customer_name"), f"Pedido #{ref}: {label}", html)

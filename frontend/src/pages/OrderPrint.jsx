@@ -96,6 +96,14 @@ export default function OrderPrint() {
             {addr.address}, {addr.city} {addr.region} {addr.postal_code ? `· ${addr.postal_code}` : ""}
           </p>
           {addr.notes && <p className="italic text-muted-foreground">{addr.notes}</p>}
+          <p className="mt-2 text-muted-foreground">
+            <span className="font-medium text-foreground">Envío:</span>{" "}
+            {order.shipping_method === "local"
+              ? `Domicilio local — ${order.shipping_zone || ""}`
+              : "Transportadora (nacional)"}
+            {order.carrier_name ? ` · ${order.carrier_name}` : ""}
+            {order.tracking_number ? ` · Guía: ${order.tracking_number}` : ""}
+          </p>
         </div>
 
         {/* Items */}
