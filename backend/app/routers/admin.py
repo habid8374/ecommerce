@@ -1,7 +1,10 @@
 """Admin panel: order management, dashboard metrics, and customers."""
+import io
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 
 from ..database import get_db
 from ..deps import get_current_admin
@@ -99,12 +102,10 @@ async def dashboard_stats(_: UserPublic = Depends(get_current_admin)):
 
 
 # --- Customers ------------------------------------------------------------
-@router.get("/customers", response_model=list[CustomerSummary])
-async def list_customers(_: UserPublic = Depends(get_current_admin)):
-    db = get_db()
+async def _customer_summaries(db) -> list[CustomerSummary]:
     users = await db.users.find({"role": "customer"}, {"_id": 0, "password": 0}).sort(
         "created_at", -1
-    ).to_list(1000)
+    ).to_list(5000)
 
     summaries: list[CustomerSummary] = []
     for u in users:
@@ -121,14 +122,95 @@ async def list_customers(_: UserPublic = Depends(get_current_admin)):
         ).to_list(1)
         spent = agg[0]["spent"] if agg else 0
         count = agg[0]["count"] if agg else 0
+
+        # Phone/city: prefer the profile phone, fall back to the latest order.
+        latest = await db.orders.find({"user_id": u["id"]}, PROJECT).sort(
+            "created_at", -1
+        ).limit(1).to_list(1)
+        addr = (latest[0].get("shipping_address") if latest else None) or {}
+        phone = u.get("phone") or addr.get("phone", "")
+        city = addr.get("city", "")
+
         summaries.append(
             CustomerSummary(
                 id=u["id"],
                 name=u["name"],
                 email=u["email"],
+                phone=phone,
+                city=city,
                 created_at=u["created_at"],
                 orders_count=count,
                 total_spent=spent,
             )
         )
     return summaries
+
+
+@router.get("/customers", response_model=list[CustomerSummary])
+async def list_customers(_: UserPublic = Depends(get_current_admin)):
+    return await _customer_summaries(get_db())
+
+
+def _fmt_date(value) -> str:
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d %H:%M")
+    return str(value or "")
+
+
+@router.get("/customers/export")
+async def export_customers(_: UserPublic = Depends(get_current_admin)):
+    """Download an .xlsx with all customers and their purchases (for marketing)."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+
+    db = get_db()
+    summaries = await _customer_summaries(db)
+
+    wb = Workbook()
+
+    # Sheet 1: customers
+    ws = wb.active
+    ws.title = "Clientes"
+    headers = ["Nombre", "Email", "Teléfono", "Ciudad", "Registrado", "N° Pedidos", "Total gastado (COP)"]
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+    for c in summaries:
+        ws.append([
+            c.name, c.email, c.phone, c.city, _fmt_date(c.created_at),
+            c.orders_count, c.total_spent,
+        ])
+
+    # Sheet 2: every order (their purchases)
+    ws2 = wb.create_sheet("Pedidos")
+    ws2.append([
+        "Pedido", "Cliente", "Email", "Teléfono", "Ciudad", "Fecha",
+        "Estado", "Pago", "Artículos", "Total (COP)",
+    ])
+    for cell in ws2[1]:
+        cell.font = Font(bold=True)
+    orders = await db.orders.find({}, PROJECT).sort("created_at", -1).to_list(50000)
+    for o in orders:
+        addr = o.get("shipping_address") or {}
+        items = "; ".join(f"{it['quantity']}x {it['name']}" for it in o.get("items", []))
+        ws2.append([
+            o["id"][:8], addr.get("full_name", ""), o.get("customer_email", ""),
+            addr.get("phone", ""), addr.get("city", ""), _fmt_date(o.get("created_at")),
+            o.get("status", ""), o.get("payment_status", ""), items, o.get("total", 0),
+        ])
+
+    # Auto-ish column widths
+    for sheet in (ws, ws2):
+        for col in sheet.columns:
+            width = max((len(str(c.value)) for c in col if c.value is not None), default=10)
+            sheet.column_dimensions[col[0].column_letter].width = min(max(width + 2, 12), 45)
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    filename = f"clientes_grafibless_{datetime.now():%Y%m%d}.xlsx"
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

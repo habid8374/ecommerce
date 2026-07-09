@@ -38,8 +38,8 @@ export function AuthProvider({ children }) {
     return handleAuth(data);
   };
 
-  const register = async (name, email, password) => {
-    const { data } = await api.post("/auth/register", { name, email, password });
+  const register = async (name, email, password, phone = "") => {
+    const { data } = await api.post("/auth/register", { name, email, password, phone });
     return handleAuth(data);
   };
 

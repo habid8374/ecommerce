@@ -1,15 +1,7 @@
 import { useState } from "react";
 import { Link, Outlet, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ShoppingCart,
-  Package,
-  LogOut,
-  LayoutDashboard,
-  Search,
-  User,
-  ShieldCheck,
-} from "lucide-react";
+import { ShoppingCart, Package, LogOut, LayoutDashboard, Search, User } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
@@ -77,20 +69,9 @@ export default function StoreLayout() {
           <SearchBar className="mx-2 hidden max-w-2xl flex-1 md:flex" />
 
           <div className="ml-auto flex items-center gap-1 sm:gap-2">
-            {/* Single admin entry point: a shortcut for guests/customers.
-                Admins reach the panel from their account menu ("Panel admin"). */}
-            {!isAdmin && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate("/login")}
-                className="hidden gap-2 text-white hover:bg-white/10 hover:text-white sm:inline-flex"
-                data-testid="nav-admin-button"
-              >
-                <ShieldCheck className="h-4 w-4" /> Admin
-              </Button>
-            )}
-
+            {/* Customers and admins log in through the same "Ingresar" button;
+                admins are redirected to the panel automatically. The discreet
+                admin link lives in the footer. */}
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

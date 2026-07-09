@@ -42,6 +42,7 @@ def close() -> None:
 async def ensure_indexes() -> None:
     db = get_db()
     await db.users.create_index("email", unique=True)
+    await db.categories.create_index("name", unique=True)
     await db.products.create_index("slug", unique=True)
     await db.products.create_index([("name", "text"), ("description", "text")])
     await db.orders.create_index("user_id")

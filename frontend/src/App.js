@@ -20,6 +20,7 @@ import Register from "@/pages/Register";
 import Dashboard from "@/pages/admin/Dashboard";
 import AdminOrders from "@/pages/admin/AdminOrders";
 import AdminProducts from "@/pages/admin/AdminProducts";
+import AdminCategories from "@/pages/admin/AdminCategories";
 import AdminCustomers from "@/pages/admin/AdminCustomers";
 
 function App() {
@@ -72,6 +73,7 @@ function App() {
               <Route path="/admin" element={<Dashboard />} />
               <Route path="/admin/orders" element={<AdminOrders />} />
               <Route path="/admin/products" element={<AdminProducts />} />
+              <Route path="/admin/categories" element={<AdminCategories />} />
               <Route path="/admin/customers" element={<AdminCustomers />} />
             </Route>
           </Routes>

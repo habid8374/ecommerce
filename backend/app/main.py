@@ -7,8 +7,8 @@ from starlette.middleware.cors import CORSMiddleware
 
 from . import config
 from .database import close, ensure_indexes
-from .routers import admin, auth, orders, payments, products
-from .seed import ensure_admin, ensure_demo_products
+from .routers import admin, auth, categories, orders, payments, products
+from .seed import ensure_admin, ensure_categories, ensure_demo_products
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,6 +25,7 @@ async def lifespan(app: FastAPI):
         await ensure_indexes()
         await ensure_admin()
         await ensure_demo_products()
+        await ensure_categories()
     except Exception as exc:  # noqa: BLE001
         logger.warning("Startup DB bootstrap skipped: %s", exc)
     yield
@@ -64,6 +65,7 @@ async def health():
 
 
 app.include_router(auth.router)
+app.include_router(categories.router)
 app.include_router(products.router)
 app.include_router(orders.router)
 app.include_router(payments.router)

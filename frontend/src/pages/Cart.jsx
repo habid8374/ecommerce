@@ -92,7 +92,7 @@ export default function Cart() {
                 data-testid="cart-checkout-button"
                 onClick={() => navigate(user ? "/checkout" : "/login?redirect=/checkout")}
               >
-                {user ? "Continuar al pago" : "Inicia sesión para pagar"}
+                {user ? "Continuar al pago" : "Regístrate o inicia sesión para comprar"}
               </Button>
             </CardContent>
           </Card>

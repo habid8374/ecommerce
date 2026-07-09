@@ -13,6 +13,13 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -25,10 +32,12 @@ const EMPTY = {
   description: "",
   price: 0,
   stock: 0,
-  category: "general",
+  category: "",
   images: "",
   active: true,
 };
+
+const NEW_CATEGORY = "__new__";
 
 function toForm(product) {
   if (!product) return { ...EMPTY };
@@ -40,11 +49,17 @@ export default function AdminProducts() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
+  const [newCat, setNewCat] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-products"],
     queryFn: async () =>
       (await api.get("/products", { params: { include_inactive: true, page_size: 100 } })).data,
+  });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => (await api.get("/categories")).data,
   });
 
   const save = useMutation({
@@ -65,6 +80,8 @@ export default function AdminProducts() {
     onSuccess: () => {
       toast.success(editing ? "Producto actualizado" : "Producto creado");
       qc.invalidateQueries({ queryKey: ["admin-products"] });
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["admin-categories"] });
       setOpen(false);
     },
     onError: (err) => toast.error(apiError(err)),
@@ -82,11 +99,13 @@ export default function AdminProducts() {
   const openNew = () => {
     setEditing(null);
     setForm({ ...EMPTY });
+    setNewCat(false);
     setOpen(true);
   };
   const openEdit = (p) => {
     setEditing(p);
     setForm(toForm(p));
+    setNewCat(false);
     setOpen(true);
   };
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -191,8 +210,52 @@ export default function AdminProducts() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="category">Categoría</Label>
-              <Input id="category" value={form.category} onChange={update("category")} />
+              <Label>Categoría</Label>
+              {newCat ? (
+                <div className="flex gap-2">
+                  <Input
+                    value={form.category}
+                    onChange={update("category")}
+                    placeholder="Nombre de la nueva categoría"
+                    autoFocus
+                    data-testid="product-new-category-input"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setNewCat(false);
+                      setForm((f) => ({ ...f, category: "" }));
+                    }}
+                  >
+                    Elegir existente
+                  </Button>
+                </div>
+              ) : (
+                <Select
+                  value={form.category || undefined}
+                  onValueChange={(v) => {
+                    if (v === NEW_CATEGORY) {
+                      setNewCat(true);
+                      setForm((f) => ({ ...f, category: "" }));
+                    } else {
+                      setForm((f) => ({ ...f, category: v }));
+                    }
+                  }}
+                >
+                  <SelectTrigger data-testid="product-category-select">
+                    <SelectValue placeholder="Selecciona una categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((c) => (
+                      <SelectItem key={c} value={c} className="capitalize">
+                        {c}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={NEW_CATEGORY}>➕ Nueva categoría…</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="images">Imágenes (URLs separadas por coma)</Label>

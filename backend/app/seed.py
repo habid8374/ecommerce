@@ -119,4 +119,15 @@ async def ensure_demo_products() -> None:
         product = Product(**data)
         product.slug = slugify(product.name)
         await db.products.insert_one(product.model_dump())
+    await ensure_categories()
     logger.info("Seeded %d demo products", len(DEMO_PRODUCTS))
+
+
+async def ensure_categories() -> None:
+    """Make sure every category used by a product exists in the categories list."""
+    db = get_db()
+    from .routers.categories import ensure_category
+
+    names = await db.products.distinct("category")
+    for name in names:
+        await ensure_category(db, name)

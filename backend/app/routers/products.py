@@ -14,6 +14,7 @@ from ..models import (
     _now,
     slugify,
 )
+from .categories import ensure_category
 
 router = APIRouter(tags=["products"])
 
@@ -62,12 +63,6 @@ async def list_products(
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
-@router.get("/api/categories")
-async def list_categories():
-    db = get_db()
-    return await db.products.distinct("category", {"active": True})
-
-
 @router.get("/api/products/{product_id}", response_model=Product)
 async def get_product(product_id: str):
     db = get_db()
@@ -94,6 +89,7 @@ async def create_product(body: ProductCreate, _: UserPublic = Depends(get_curren
         await db.products.insert_one(product.model_dump())
     except DuplicateKeyError:
         raise HTTPException(status.HTTP_409_CONFLICT, "Slug de producto duplicado")
+    await ensure_category(db, product.category)
     return product
 
 
@@ -114,6 +110,8 @@ async def update_product(
     changes["updated_at"] = _now()
 
     await db.products.update_one({"id": product_id}, {"$set": changes})
+    if changes.get("category"):
+        await ensure_category(db, changes["category"])
     doc = await db.products.find_one({"id": product_id}, PROJECT)
     return Product(**doc)
 

@@ -44,6 +44,7 @@ class UserPublic(BaseModel):
     id: str
     email: str
     name: str
+    phone: str = ""
     role: Role
     created_at: datetime
 
@@ -51,6 +52,7 @@ class UserPublic(BaseModel):
 class UserRegister(BaseModel):
     email: EmailStr
     name: str = Field(min_length=1, max_length=120)
+    phone: str = Field(default="", max_length=40)
     password: str = Field(min_length=6, max_length=128)
 
 
@@ -68,6 +70,18 @@ class TokenResponse(BaseModel):
 # --------------------------------------------------------------------------
 # Products
 # --------------------------------------------------------------------------
+class Category(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=_uuid)
+    name: str
+    slug: str = ""
+    created_at: datetime = Field(default_factory=_now)
+
+
+class CategoryCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+
+
 class ProductBase(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     description: str = ""
@@ -208,6 +222,8 @@ class CustomerSummary(BaseModel):
     id: str
     name: str
     email: str
+    phone: str = ""
+    city: str = ""
     created_at: datetime
     orders_count: int
     total_spent: int

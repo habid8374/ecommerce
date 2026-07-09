@@ -28,6 +28,7 @@ async def register(body: UserRegister):
         "id": _uuid(),
         "email": email,
         "name": body.name.strip(),
+        "phone": (body.phone or "").strip(),
         "password": security.hash_password(body.password),
         "role": Role.customer.value,
         "created_at": _now(),

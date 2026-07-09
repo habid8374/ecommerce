@@ -189,6 +189,59 @@ def test_admin_stats_and_customers(client, db, admin_token):
     assert customers[0]["total_spent"] == order["total"]
 
 
+def test_category_management(client, db, admin_token):
+    # Create a category explicitly.
+    created = client.post(
+        "/api/admin/categories", headers=auth(admin_token), json={"name": "DTF"}
+    )
+    assert created.status_code == 201
+    assert created.json()["name"] == "dtf"  # normalized
+
+    # Duplicate rejected.
+    assert client.post(
+        "/api/admin/categories", headers=auth(admin_token), json={"name": "dtf"}
+    ).status_code == 409
+
+    # Creating a product with a new category auto-registers it.
+    client.post(
+        "/api/admin/products",
+        headers=auth(admin_token),
+        json={"name": "Mug", "price": 20000, "category": "Sublimación"},
+    )
+    names = client.get("/api/categories").json()
+    assert "dtf" in names
+    assert "sublimación" in names
+
+
+def test_customer_export_xlsx(client, db, admin_token):
+    product = _make_product(client, admin_token)
+    token = register(client).json()["access_token"]
+    order = client.post(
+        "/api/orders",
+        headers=auth(token),
+        json={
+            "items": [{"product_id": product["id"], "quantity": 1}],
+            "shipping_address": ADDRESS,
+        },
+    ).json()
+    client.post(f"/api/payments/orders/{order['id']}/simulate", headers=auth(token))
+
+    resp = client.get("/api/admin/customers/export", headers=auth(admin_token))
+    assert resp.status_code == 200
+    assert "spreadsheetml" in resp.headers["content-type"]
+    # xlsx files are zip archives -> start with "PK"
+    assert resp.content[:2] == b"PK"
+
+
+def test_register_with_phone(client, db):
+    resp = client.post(
+        "/api/auth/register",
+        json={"name": "Ana", "email": "ana@example.com", "password": "secret123", "phone": "3001112233"},
+    )
+    assert resp.status_code == 201
+    assert resp.json()["user"]["phone"] == "3001112233"
+
+
 def test_admin_updates_order_status(client, db, admin_token):
     product = _make_product(client, admin_token)
     token = register(client).json()["access_token"]

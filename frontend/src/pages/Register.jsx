@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", confirm: "" });
   const [loading, setLoading] = useState(false);
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -30,7 +30,7 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      await register(form.name, form.email, form.password);
+      await register(form.name, form.email, form.password, form.phone);
       toast.success("Cuenta creada");
       navigate("/", { replace: true });
     } catch (err) {
@@ -63,6 +63,10 @@ export default function Register() {
             <div className="space-y-2">
               <Label htmlFor="email">Correo</Label>
               <Input id="email" type="email" required value={form.email} onChange={update("email")} data-testid={REGISTER.emailInput} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Teléfono / WhatsApp</Label>
+              <Input id="phone" type="tel" value={form.phone} onChange={update("phone")} placeholder="3001234567" data-testid="register-phone-input" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña</Label>
