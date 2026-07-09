@@ -1,4 +1,6 @@
 """Wompi payment flow: intent creation, webhook, and dev simulation."""
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from .. import config, wompi
@@ -6,6 +8,8 @@ from ..database import get_db
 from ..deps import get_current_user
 from ..models import Order, PaymentIntent, PaymentStatus, UserPublic
 from .orders import mark_order_paid, set_payment_failed
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/payments", tags=["payments"])
 
@@ -66,13 +70,27 @@ async def create_intent(order_id: str, user: UserPublic = Depends(get_current_us
     return intent
 
 
+@router.get("/wompi/webhook")
+async def wompi_webhook_check():
+    """Health/validation endpoint. Real Wompi events arrive via POST below."""
+    return {"status": "ok", "message": "Wompi webhook listo. Los eventos llegan por POST."}
+
+
 @router.post("/wompi/webhook", status_code=status.HTTP_200_OK)
 async def wompi_webhook(request: Request):
     payload = await request.json()
+    transaction = (payload.get("data") or {}).get("transaction") or {}
+    logger.info(
+        "Wompi webhook: event=%s ref=%s status=%s",
+        payload.get("event"),
+        transaction.get("reference"),
+        transaction.get("status"),
+    )
+
     if not wompi.verify_event_signature(payload):
+        logger.warning("Wompi webhook: firma inválida (revisa WOMPI_EVENTS_SECRET del ambiente)")
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Firma de evento inválida")
 
-    transaction = (payload.get("data") or {}).get("transaction") or {}
     reference = transaction.get("reference")
     tx_status = transaction.get("status")
     tx_id = transaction.get("id")
@@ -82,11 +100,13 @@ async def wompi_webhook(request: Request):
     db = get_db()
     order = await db.orders.find_one({"reference": reference}, PROJECT)
     if not order:
+        logger.warning("Wompi webhook: no se encontró pedido con referencia %s", reference)
         return {"received": True}
 
     mapped = _STATUS_MAP.get(tx_status)
     if mapped == PaymentStatus.approved:
         await mark_order_paid(db, order, tx_id)
+        logger.info("Wompi webhook: pedido %s marcado como PAGADO", order["id"])
     elif mapped is not None:
         await set_payment_failed(db, order["id"], mapped.value, tx_id)
     return {"received": True}
