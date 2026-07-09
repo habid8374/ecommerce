@@ -48,6 +48,15 @@ async def mark_order_paid(db, order: dict, transaction_id: Optional[str] = None)
             }
         },
     )
+    # Notify the customer (best-effort; never blocks the payment).
+    try:
+        from ..services.email import send_order_paid
+
+        await send_order_paid({**order, "status": OrderStatus.paid.value})
+    except Exception as exc:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).warning("order paid email failed: %s", exc)
 
 
 async def set_payment_failed(db, order_id: str, payment_status: str, transaction_id: Optional[str]):
@@ -111,7 +120,14 @@ async def create_order(body: OrderCreate, user: UserPublic = Depends(get_current
             )
         )
 
-    shipping_cost = compute_shipping(subtotal)
+    # Shipping cost from system settings (falls back to env defaults).
+    from ..services.settings_store import get_settings
+
+    ship = (await get_settings()).get("shipping", {})
+    free_over = ship.get("free_over", config.FREE_SHIPPING_OVER)
+    flat = ship.get("cost", config.SHIPPING_COST)
+    shipping_cost = 0 if (subtotal <= 0 or subtotal >= free_over) else flat
+
     order = Order(
         user_id=user.id,
         customer_email=user.email,

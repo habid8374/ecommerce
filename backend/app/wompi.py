@@ -2,34 +2,37 @@
 
 Docs: https://docs.wompi.co/
 
-Two pieces matter for a server integration:
+Credentials are passed in explicitly (resolved from system settings, which fall
+back to env vars) so the active environment (test/production) can be switched
+from the admin panel.
 
-1. Integrity signature — built when we hand the checkout off to the browser:
-       SHA256(reference + amount_in_cents + currency + integrity_secret)
-   Wompi validates it so the amount cannot be tampered with client-side.
-
-2. Events (webhook) signature — Wompi POSTs transaction updates and signs them:
-       SHA256(concat(values of signature.properties) + timestamp + events_secret)
-   We recompute and compare before trusting the payload.
+1. Integrity signature — SHA256(reference + amount_in_cents + currency + integrity_secret)
+2. Events (webhook) signature — SHA256(concat(signature.properties values) + timestamp + events_secret)
 """
 import hashlib
 from typing import Any, Optional
 
 import requests
 
-from . import config
 
-
-def integrity_signature(reference: str, amount_in_cents: int, currency: str) -> str:
-    raw = f"{reference}{amount_in_cents}{currency}{config.WOMPI_INTEGRITY_SECRET}"
+def integrity_signature(reference: str, amount_in_cents: int, currency: str, integrity_secret: str) -> str:
+    raw = f"{reference}{amount_in_cents}{currency}{integrity_secret}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def checkout_url(reference: str, amount_in_cents: int, currency: str, redirect_url: str) -> str:
-    """Wompi Web Checkout URL (redirect flow)."""
-    signature = integrity_signature(reference, amount_in_cents, currency)
+def checkout_url(
+    reference: str,
+    amount_in_cents: int,
+    currency: str,
+    redirect_url: str,
+    public_key: str,
+    integrity_secret: str,
+) -> str:
+    """Wompi Web Checkout URL (redirect flow). The public key prefix
+    (pub_test_ / pub_prod_) determines the sandbox vs production environment."""
+    signature = integrity_signature(reference, amount_in_cents, currency, integrity_secret)
     params = (
-        f"public-key={config.WOMPI_PUBLIC_KEY}"
+        f"public-key={public_key}"
         f"&currency={currency}"
         f"&amount-in-cents={amount_in_cents}"
         f"&reference={reference}"
@@ -39,11 +42,9 @@ def checkout_url(reference: str, amount_in_cents: int, currency: str, redirect_u
     return f"https://checkout.wompi.co/p/?{params}"
 
 
-def verify_event_signature(payload: dict) -> bool:
+def verify_event_signature(payload: dict, events_secret: str) -> bool:
     """Validate the checksum Wompi sends with each event."""
-    events_secret = config.WOMPI_EVENTS_SECRET
     if not events_secret:
-        # Without the secret configured we cannot verify — reject to be safe.
         return False
     try:
         sig = payload["signature"]
@@ -55,7 +56,6 @@ def verify_event_signature(payload: dict) -> bool:
 
     concatenated = ""
     for prop in properties:
-        # e.g. "transaction.amount_in_cents" -> data["transaction"]["amount_in_cents"]
         value: Any = data
         for part in prop.split("."):
             if not isinstance(value, dict):
@@ -68,14 +68,14 @@ def verify_event_signature(payload: dict) -> bool:
     return computed == sig.get("checksum")
 
 
-def fetch_transaction(transaction_id: str) -> Optional[dict]:
+def fetch_transaction(transaction_id: str, private_key: str, base_url: str) -> Optional[dict]:
     """Server-side confirmation of a transaction's real status."""
-    if not config.WOMPI_PRIVATE_KEY:
+    if not private_key:
         return None
     try:
         resp = requests.get(
-            f"{config.WOMPI_BASE_URL}/transactions/{transaction_id}",
-            headers={"Authorization": f"Bearer {config.WOMPI_PRIVATE_KEY}"},
+            f"{base_url}/transactions/{transaction_id}",
+            headers={"Authorization": f"Bearer {private_key}"},
             timeout=15,
         )
         resp.raise_for_status()

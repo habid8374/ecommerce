@@ -1,6 +1,6 @@
 """Admin panel: order management, dashboard metrics, and customers."""
 import io
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -68,6 +68,13 @@ async def update_order_status(
     if result.matched_count == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Pedido no encontrado")
     order = await db.orders.find_one({"id": order_id}, PROJECT)
+    # Notify the customer of the new status (best-effort).
+    try:
+        from ..services.email import send_status_changed
+
+        await send_status_changed(order, body.status.value)
+    except Exception:  # noqa: BLE001
+        pass
     return Order(**order)
 
 
@@ -139,6 +146,88 @@ async def dashboard_stats(_: UserPublic = Depends(get_current_admin)):
         low_stock=await db.products.count_documents({"stock": {"$lte": 5}}),
         recent_orders=recent,
     )
+
+
+# --- Analytics (professional dashboard) -----------------------------------
+@router.get("/analytics")
+async def analytics(days: int = 30, _: UserPublic = Depends(get_current_admin)):
+    db = get_db()
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    paid = {"payment_status": PaymentStatus.approved.value}
+
+    # Revenue & orders per day.
+    sales = await db.orders.aggregate([
+        {"$match": {**paid, "created_at": {"$gte": since}}},
+        {"$group": {
+            "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}},
+            "revenue": {"$sum": "$total"},
+            "orders": {"$sum": 1},
+        }},
+        {"$sort": {"_id": 1}},
+    ]).to_list(1000)
+    sales_series = [{"date": s["_id"], "revenue": s["revenue"], "orders": s["orders"]} for s in sales]
+
+    # Best sellers by units.
+    top = await db.orders.aggregate([
+        {"$match": paid},
+        {"$unwind": "$items"},
+        {"$group": {
+            "_id": "$items.name",
+            "qty": {"$sum": "$items.quantity"},
+            "revenue": {"$sum": "$items.subtotal"},
+        }},
+        {"$sort": {"qty": -1}},
+        {"$limit": 8},
+    ]).to_list(8)
+    top_products = [{"name": t["_id"], "qty": t["qty"], "revenue": t["revenue"]} for t in top]
+
+    # Units sold per product id -> low rotation.
+    sold = await db.orders.aggregate([
+        {"$match": paid},
+        {"$unwind": "$items"},
+        {"$group": {"_id": "$items.product_id", "qty": {"$sum": "$items.quantity"}}},
+    ]).to_list(10000)
+    sold_map = {s["_id"]: s["qty"] for s in sold}
+    products = await db.products.find({"active": True}, PROJECT).to_list(10000)
+    low = sorted(products, key=lambda p: sold_map.get(p["id"], 0))[:8]
+    low_rotation = [
+        {"name": p["name"], "qty": sold_map.get(p["id"], 0), "stock": p.get("stock", 0)}
+        for p in low
+    ]
+
+    # Revenue by category.
+    by_cat = await db.orders.aggregate([
+        {"$match": paid},
+        {"$unwind": "$items"},
+        {"$lookup": {
+            "from": "products", "localField": "items.product_id",
+            "foreignField": "id", "as": "p",
+        }},
+        {"$group": {
+            "_id": {"$ifNull": [{"$arrayElemAt": ["$p.category", 0]}, "otros"]},
+            "revenue": {"$sum": "$items.subtotal"},
+        }},
+        {"$sort": {"revenue": -1}},
+    ]).to_list(50)
+    revenue_by_category = [{"category": c["_id"], "revenue": c["revenue"]} for c in by_cat]
+
+    status_breakdown = {
+        st.value: await db.orders.count_documents({"status": st.value}) for st in OrderStatus
+    }
+
+    revenue_total = sum(s["revenue"] for s in sales_series)
+    orders_total = sum(s["orders"] for s in sales_series)
+    return {
+        "days": days,
+        "sales_series": sales_series,
+        "top_products": top_products,
+        "low_rotation": low_rotation,
+        "revenue_by_category": revenue_by_category,
+        "status_breakdown": status_breakdown,
+        "period_revenue": revenue_total,
+        "period_orders": orders_total,
+        "avg_ticket": round(revenue_total / orders_total) if orders_total else 0,
+    }
 
 
 # --- Customers ------------------------------------------------------------

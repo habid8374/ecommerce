@@ -320,6 +320,36 @@ def test_category_edit_renames_products(client, db, admin_token):
     assert len(items) == 1
 
 
+def test_settings_read_and_update(client, db, admin_token):
+    settings = client.get("/api/admin/settings", headers=auth(admin_token)).json()
+    assert settings["wompi"]["environment"] == "test"
+
+    upd = client.put(
+        "/api/admin/settings",
+        headers=auth(admin_token),
+        json={"wompi": {"environment": "production"}, "company": {"nit": "900123"}},
+    )
+    assert upd.status_code == 200
+    again = client.get("/api/admin/settings", headers=auth(admin_token)).json()
+    assert again["wompi"]["environment"] == "production"
+    assert again["company"]["nit"] == "900123"
+
+
+def test_analytics_shape(client, db, admin_token):
+    product = _make_product(client, admin_token, price=100000)
+    token = register(client).json()["access_token"]
+    order = client.post(
+        "/api/orders", headers=auth(token),
+        json={"items": [{"product_id": product["id"], "quantity": 2}]},
+    ).json()
+    client.post(f"/api/payments/orders/{order['id']}/simulate", headers=auth(token))
+
+    data = client.get("/api/admin/analytics", headers=auth(admin_token)).json()
+    assert "sales_series" in data
+    assert data["period_orders"] == 1
+    assert data["top_products"][0]["qty"] == 2
+
+
 def test_admin_confirm_payment(client, db, admin_token):
     product = _make_product(client, admin_token)
     token = register(client).json()["access_token"]

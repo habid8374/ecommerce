@@ -1,4 +1,8 @@
-"""Wompi payment flow: intent creation, webhook, and dev simulation."""
+"""Wompi payment flow: intent creation, webhook, and dev simulation.
+
+Wompi credentials are resolved from system settings (test/production, switchable
+from the admin panel), falling back to env vars.
+"""
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -7,6 +11,7 @@ from .. import config, wompi
 from ..database import get_db
 from ..deps import get_current_user
 from ..models import Order, PaymentIntent, PaymentStatus, UserPublic
+from ..services.settings_store import get_settings, resolve_wompi
 from .orders import mark_order_paid, set_payment_failed
 
 logger = logging.getLogger(__name__)
@@ -24,14 +29,20 @@ _STATUS_MAP = {
 }
 
 
+async def _wompi():
+    return resolve_wompi(await get_settings())
+
+
 @router.get("/config")
 async def payment_config():
+    w = await _wompi()
     return {
         "provider": "wompi",
-        "enabled": config.PAYMENTS_ENABLED,
-        "simulate": config.SIMULATE_PAYMENTS,
-        "public_key": config.WOMPI_PUBLIC_KEY,
-        "currency": config.CURRENCY,
+        "enabled": w["enabled"],
+        "simulate": w["simulate"],
+        "public_key": w["public_key"],
+        "environment": w["environment"],
+        "currency": w["currency"],
     }
 
 
@@ -50,23 +61,29 @@ async def create_intent(order_id: str, user: UserPublic = Depends(get_current_us
     if order.get("payment_status") == PaymentStatus.approved.value:
         raise HTTPException(status.HTTP_409_CONFLICT, "El pedido ya fue pagado")
 
+    w = await _wompi()
     reference = order["reference"]
     amount_in_cents = int(order["total"]) * 100
-    currency = config.CURRENCY
+    currency = w["currency"]
     redirect_url = f"{config.FRONTEND_URL}/order-confirmation/{order_id}"
 
     intent = PaymentIntent(
-        enabled=config.PAYMENTS_ENABLED,
-        simulate=config.SIMULATE_PAYMENTS,
+        enabled=w["enabled"],
+        simulate=w["simulate"],
         reference=reference,
         amount_in_cents=amount_in_cents,
         currency=currency,
-        public_key=config.WOMPI_PUBLIC_KEY,
+        public_key=w["public_key"],
         redirect_url=redirect_url,
     )
-    if config.PAYMENTS_ENABLED:
-        intent.integrity_signature = wompi.integrity_signature(reference, amount_in_cents, currency)
-        intent.checkout_url = wompi.checkout_url(reference, amount_in_cents, currency, redirect_url)
+    if w["enabled"]:
+        intent.integrity_signature = wompi.integrity_signature(
+            reference, amount_in_cents, currency, w["integrity_secret"]
+        )
+        intent.checkout_url = wompi.checkout_url(
+            reference, amount_in_cents, currency, redirect_url,
+            w["public_key"], w["integrity_secret"],
+        )
     return intent
 
 
@@ -87,8 +104,9 @@ async def wompi_webhook(request: Request):
         transaction.get("status"),
     )
 
-    if not wompi.verify_event_signature(payload):
-        logger.warning("Wompi webhook: firma inválida (revisa WOMPI_EVENTS_SECRET del ambiente)")
+    w = await _wompi()
+    if not wompi.verify_event_signature(payload, w["events_secret"]):
+        logger.warning("Wompi webhook: firma inválida (revisa el secreto de eventos del ambiente activo)")
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Firma de evento inválida")
 
     reference = transaction.get("reference")
@@ -118,17 +136,18 @@ async def verify_order(
     transaction_id: str | None = None,
     user: UserPublic = Depends(get_current_user),
 ):
-    """Pull the transaction status from Wompi and reconcile the order.
+    """Reconcile the order against Wompi.
 
     `transaction_id` is the `id` Wompi appends to the redirect URL after payment,
     so the order confirms as soon as the customer returns — even if the webhook
-    hasn't (or never) arrives. Falls back to the id stored by the webhook.
+    never arrives. Falls back to the id stored by the webhook.
     """
     order = await _load_owned_order(order_id, user)
     db = get_db()
+    w = await _wompi()
     tx_id = transaction_id or order.get("wompi_transaction_id")
-    if config.PAYMENTS_ENABLED and tx_id:
-        tx = wompi.fetch_transaction(tx_id)
+    if w["enabled"] and tx_id:
+        tx = wompi.fetch_transaction(tx_id, w["private_key"], w["base_url"])
         # Only trust the transaction if its reference matches this order.
         if tx and tx.get("reference") == order.get("reference"):
             mapped = _STATUS_MAP.get(tx.get("status"))
@@ -146,7 +165,8 @@ async def simulate_payment(order_id: str, user: UserPublic = Depends(get_current
 
     Disabled automatically once real Wompi keys are configured.
     """
-    if not config.SIMULATE_PAYMENTS:
+    w = await _wompi()
+    if not w["simulate"]:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Simulación de pagos deshabilitada")
     order = await _load_owned_order(order_id, user)
     db = get_db()

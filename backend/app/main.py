@@ -7,7 +7,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from . import config
 from .database import close, ensure_indexes
-from .routers import admin, auth, categories, orders, payments, products
+from .routers import admin, auth, categories, orders, payments, products, settings as settings_router
 from .seed import ensure_admin, ensure_categories, ensure_demo_products
 
 logging.basicConfig(
@@ -70,3 +70,4 @@ app.include_router(products.router)
 app.include_router(orders.router)
 app.include_router(payments.router)
 app.include_router(admin.router)
+app.include_router(settings_router.router)
