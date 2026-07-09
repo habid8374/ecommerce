@@ -48,3 +48,5 @@ async def ensure_indexes() -> None:
     await db.orders.create_index("user_id")
     await db.orders.create_index("reference", unique=True, sparse=True)
     await db.orders.create_index("created_at")
+    await db.invoices.create_index("order_id")
+    await db.invoices.create_index("created_at")

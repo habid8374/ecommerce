@@ -177,9 +177,15 @@ export default function AdminSettings() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Switch checked={form.factus?.enabled} onCheckedChange={set("factus.enabled")} />
-            <Label>Emitir factura electrónica automáticamente al aprobarse el pago</Label>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Switch checked={form.factus?.enabled} onCheckedChange={set("factus.enabled")} />
+              <Label>Habilitar facturación electrónica (Factus)</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch checked={form.factus?.auto_emit} onCheckedChange={set("factus.auto_emit")} />
+              <Label>Emitir automáticamente al aprobarse el pago</Label>
+            </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="URL base de Factus" value={form.factus?.base_url || ""} onChange={inp("factus.base_url")} placeholder="https://api-sandbox.factus.com.co" />
@@ -188,12 +194,21 @@ export default function AdminSettings() {
             <Field label="Contraseña" type="password" value={form.factus?.password || ""} onChange={inp("factus.password")} />
             <Field label="Client ID" value={form.factus?.client_id || ""} onChange={inp("factus.client_id")} />
             <Field label="Client Secret" type="password" value={form.factus?.client_secret || ""} onChange={inp("factus.client_secret")} />
-            <Field label="IVA por defecto (%)" type="number" value={form.factus?.default_iva || 0} onChange={(e) => set("factus.default_iva")(Number(e.target.value))} />
           </div>
+          <details className="rounded-lg border p-3">
+            <summary className="cursor-pointer text-sm font-medium">Catálogos DIAN (avanzado)</summary>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              <Field label="IVA por defecto (%)" type="number" value={form.factus?.default_iva || 0} onChange={(e) => set("factus.default_iva")(Number(e.target.value))} />
+              <Field label="Municipio (municipality_id)" type="number" value={form.factus?.municipality_id || 0} onChange={(e) => set("factus.municipality_id")(Number(e.target.value))} />
+              <Field label="Forma de pago (payment_form)" value={form.factus?.payment_form || ""} onChange={inp("factus.payment_form")} />
+              <Field label="Método de pago (payment_method_code)" value={form.factus?.payment_method_code || ""} onChange={inp("factus.payment_method_code")} />
+              <Field label="Tributo del cliente (customer_tribute_id)" type="number" value={form.factus?.customer_tribute_id || 0} onChange={(e) => set("factus.customer_tribute_id")(Number(e.target.value))} />
+              <Field label="Unidad de medida (unit_measure_id)" type="number" value={form.factus?.unit_measure_id || 0} onChange={(e) => set("factus.unit_measure_id")(Number(e.target.value))} />
+            </div>
+          </details>
           <p className="text-xs text-muted-foreground">
-            Con estas credenciales el sistema emitirá la factura al confirmarse el pago
-            y la enviará al correo del cliente. Las notas crédito/débito se gestionan
-            desde el detalle del pedido.
+            Al aprobarse el pago se emite la factura y se envía al correo del cliente.
+            El listado y las notas crédito/débito están en el módulo <b>Facturación</b>.
           </p>
         </CardContent>
       </Card>

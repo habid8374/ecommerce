@@ -356,6 +356,22 @@ def test_category_edit_renames_products(client, db, admin_token):
     assert len(items) == 1
 
 
+def test_invoices_empty_and_emit_disabled(client, db, admin_token):
+    # No invoices yet.
+    assert client.get("/api/admin/invoices", headers=auth(admin_token)).json() == []
+
+    product = _make_product(client, admin_token)
+    token = register(client).json()["access_token"]
+    order = client.post(
+        "/api/orders", headers=auth(token),
+        json={"items": [{"product_id": product["id"], "quantity": 1}]},
+    ).json()
+
+    # Factus disabled by default -> manual emit is rejected.
+    resp = client.post(f"/api/admin/orders/{order['id']}/invoice", headers=auth(admin_token))
+    assert resp.status_code == 400
+
+
 def test_settings_read_and_update(client, db, admin_token):
     settings = client.get("/api/admin/settings", headers=auth(admin_token)).json()
     assert settings["wompi"]["environment"] == "test"

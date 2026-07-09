@@ -9,6 +9,7 @@ import {
   Tag,
   Settings,
   Menu,
+  FileText,
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ const GROUPS = [
     icon: ShoppingBag,
     items: [
       { to: "/admin/orders", label: "Pedidos", icon: ShoppingBag },
+      { to: "/admin/invoices", label: "Facturación", icon: FileText },
       { to: "/admin/customers", label: "Clientes", icon: Users },
     ],
   },

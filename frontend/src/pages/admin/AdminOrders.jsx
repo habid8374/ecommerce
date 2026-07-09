@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { CheckCircle2, Trash2, Printer } from "lucide-react";
+import { CheckCircle2, Trash2, Printer, FileText } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import { useConfirm } from "@/context/ConfirmContext";
 import { formatCOP, formatDate, ORDER_STATUS, PAYMENT_STATUS } from "@/lib/format";
@@ -94,6 +94,15 @@ export default function AdminOrders() {
       qc.invalidateQueries({ queryKey: ["admin-stats"] });
     },
     onError: (err) => toast.error(apiError(err)),
+  });
+
+  const emitInvoice = useMutation({
+    mutationFn: (id) => api.post(`/admin/orders/${id}/invoice`),
+    onSuccess: (res) => {
+      toast.success(`Factura ${res.data.number || ""} emitida`);
+      qc.invalidateQueries({ queryKey: ["admin-invoices"] });
+    },
+    onError: (err) => toast.error(apiError(err, "No se pudo emitir la factura")),
   });
 
   const orders = data?.items || [];
@@ -269,7 +278,7 @@ export default function AdminOrders() {
                   </span>
                 </div>
 
-                {selected.payment_status !== "approved" && (
+                {selected.payment_status !== "approved" ? (
                   <Button
                     variant="outline"
                     className="w-full border-emerald-300 text-emerald-700 hover:bg-emerald-50"
@@ -279,6 +288,17 @@ export default function AdminOrders() {
                   >
                     <CheckCircle2 className="mr-2 h-4 w-4" />
                     {confirmPayment.isPending ? "Verificando..." : "Marcar pago como verificado"}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    disabled={emitInvoice.isPending}
+                    onClick={() => emitInvoice.mutate(selected.id)}
+                    data-testid="order-emit-invoice"
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    {emitInvoice.isPending ? "Emitiendo..." : "Emitir factura electrónica"}
                   </Button>
                 )}
 

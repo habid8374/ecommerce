@@ -116,6 +116,19 @@ async def send_order_paid(order: dict) -> None:
     await send_email(order.get("customer_email"), order.get("customer_name"), f"Pago confirmado · Pedido #{ref}", html)
 
 
+async def send_invoice(order: dict, public_url: str, number: str) -> None:
+    settings = await get_settings()
+    company = settings.get("company", {}).get("name", "GRAFIBLESS")
+    ref = order["id"][:8]
+    body = f"""
+      <p>Hola {order.get('customer_name') or ''},</p>
+      <p>Adjuntamos tu <b>factura electrónica</b> {number and f'N° {number}'} del pedido <b>#{ref}</b>.</p>
+      <p><a href="{public_url}" style="display:inline-block;background:#1e5eff;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">Ver / descargar factura</a></p>
+    """
+    html = _layout(company, "Tu factura electrónica", body)
+    await send_email(order.get("customer_email"), order.get("customer_name"), f"Factura electrónica · Pedido #{ref}", html)
+
+
 async def send_status_changed(order: dict, new_status: str) -> None:
     settings = await get_settings()
     company = settings.get("company", {}).get("name", "GRAFIBLESS")

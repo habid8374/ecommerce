@@ -46,6 +46,7 @@ DEFAULTS = {
     # Factus electronic invoicing (DIAN). Filled in from the admin panel.
     "factus": {
         "enabled": False,
+        "auto_emit": True,  # emit the invoice automatically when payment is approved
         "base_url": "https://api-sandbox.factus.com.co",
         "email": "",
         "password": "",
@@ -53,6 +54,12 @@ DEFAULTS = {
         "client_secret": "",
         "numbering_range_id": 0,
         "default_iva": 0,  # % IVA applied to items (0 or 19)
+        # DIAN catalog values (defaults; adjust to your account).
+        "municipality_id": 980,        # Barranquilla
+        "payment_form": "1",           # 1=contado, 2=crédito
+        "payment_method_code": "10",   # 10=efectivo (contraentrega), 42=transferencia
+        "customer_tribute_id": 21,     # 21=No responsable de IVA
+        "unit_measure_id": 70,         # 70=unidad
     },
     "shipping": {
         # Free national (carrier) shipping over this subtotal (0 disables it).

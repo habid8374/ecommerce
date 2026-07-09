@@ -48,15 +48,25 @@ async def mark_order_paid(db, order: dict, transaction_id: Optional[str] = None)
             }
         },
     )
-    # Notify the customer (best-effort; never blocks the payment).
+    # Notify the customer + emit the electronic invoice (best-effort; never
+    # blocks the payment).
+    paid_order = {**order, "status": OrderStatus.paid.value}
     try:
         from ..services.email import send_order_paid
 
-        await send_order_paid({**order, "status": OrderStatus.paid.value})
+        await send_order_paid(paid_order)
     except Exception as exc:  # noqa: BLE001
         import logging
 
         logging.getLogger(__name__).warning("order paid email failed: %s", exc)
+    try:
+        from ..services.invoicing import emit_and_store
+
+        await emit_and_store(db, paid_order, auto=True)
+    except Exception as exc:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).warning("auto invoice failed: %s", exc)
 
 
 async def set_payment_failed(db, order_id: str, payment_status: str, transaction_id: Optional[str]):
