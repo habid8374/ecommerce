@@ -50,7 +50,7 @@ function Kpi({ icon: Icon, label, value, accent }) {
 
 function ChartCard({ title, icon: Icon, children, empty, emptyText }) {
   return (
-    <Card>
+    <Card className="min-w-0 overflow-hidden">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-sm font-semibold">
           {Icon && <Icon className="h-4 w-4 text-muted-foreground" />} {title}
@@ -135,16 +135,16 @@ export default function Dashboard() {
         </div>
       </ChartCard>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         {/* Best sellers */}
         <ChartCard title="Más vendidos" icon={TrendingUp} empty={top.length === 0} emptyText="Aún no hay ventas.">
           <div className="space-y-2.5">
             {top.map((p, i) => {
               const max = top[0]?.qty || 1;
               return (
-                <div key={p.name}>
+                <div key={p.name} className="min-w-0">
                   <div className="mb-1 flex items-center justify-between gap-2 text-sm">
-                    <span className="truncate">{p.name}</span>
+                    <span className="min-w-0 flex-1 truncate">{p.name}</span>
                     <span className="shrink-0 font-medium text-muted-foreground">{p.qty} uds</span>
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -164,7 +164,7 @@ export default function Dashboard() {
           <div className="divide-y">
             {low.map((p) => (
               <div key={p.name} className="flex items-center justify-between gap-2 py-2 text-sm">
-                <span className="truncate">{p.name}</span>
+                <span className="min-w-0 flex-1 truncate">{p.name}</span>
                 <span className="flex shrink-0 items-center gap-2">
                   <span className={p.qty === 0 ? "font-medium text-red-600" : "text-muted-foreground"}>{p.qty} vend.</span>
                   <span className="text-xs text-muted-foreground">stock {p.stock}</span>
