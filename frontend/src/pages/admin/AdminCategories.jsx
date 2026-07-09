@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Trash2, Tag, Pencil, Check, X } from "lucide-react";
 import { api, apiError } from "@/lib/api";
+import { useConfirm } from "@/context/ConfirmContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AdminCategories() {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [name, setName] = useState("");
   const [editing, setEditing] = useState(null); // { id, value }
 
@@ -135,8 +137,16 @@ export default function AdminCategories() {
                         variant="ghost"
                         size="icon"
                         className="text-muted-foreground hover:text-destructive"
-                        onClick={() => {
-                          if (window.confirm(`¿Eliminar la categoría "${c.name}"?`)) remove.mutate(c.id);
+                        onClick={async () => {
+                          if (
+                            await confirm({
+                              title: "Eliminar categoría",
+                              description: `¿Eliminar la categoría "${c.name}"?`,
+                              confirmText: "Eliminar",
+                              destructive: true,
+                            })
+                          )
+                            remove.mutate(c.id);
                         }}
                         aria-label="Eliminar"
                       >

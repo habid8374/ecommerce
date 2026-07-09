@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { api, apiError } from "@/lib/api";
+import { useConfirm } from "@/context/ConfirmContext";
 import { formatCOP } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,7 @@ function toForm(product) {
 
 export default function AdminProducts() {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
@@ -159,8 +161,16 @@ export default function AdminProducts() {
                       variant="ghost"
                       size="icon"
                       className="text-muted-foreground hover:text-destructive"
-                      onClick={() => {
-                        if (window.confirm(`¿Eliminar "${p.name}"?`)) remove.mutate(p.id);
+                      onClick={async () => {
+                        if (
+                          await confirm({
+                            title: "Eliminar producto",
+                            description: `¿Eliminar "${p.name}"? Esta acción no se puede deshacer.`,
+                            confirmText: "Eliminar",
+                            destructive: true,
+                          })
+                        )
+                          remove.mutate(p.id);
                       }}
                     >
                       <Trash2 className="h-4 w-4" />

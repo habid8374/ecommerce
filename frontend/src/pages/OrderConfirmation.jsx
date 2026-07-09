@@ -1,6 +1,6 @@
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, Clock, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, XCircle, Printer } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatCOP, formatDate, ORDER_STATUS } from "@/lib/format";
 import OrderTracker from "@/components/OrderTracker";
@@ -129,11 +129,16 @@ export default function OrderConfirmation() {
         </CardContent>
       </Card>
 
-      <div className="mt-6 flex gap-3">
-        <Button asChild variant="outline" className="flex-1">
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <Button asChild variant="outline">
+          <Link to={`/order/${order.id}/print`} data-testid="print-order-link">
+            <Printer className="mr-2 h-4 w-4" /> Imprimir orden
+          </Link>
+        </Button>
+        <Button asChild variant="outline">
           <Link to="/orders">Mis pedidos</Link>
         </Button>
-        <Button asChild className="flex-1">
+        <Button asChild className="col-span-2 sm:col-span-1">
           <Link to="/">Seguir comprando</Link>
         </Button>
       </div>

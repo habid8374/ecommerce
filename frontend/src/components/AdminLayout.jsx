@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
-import { LayoutDashboard, Package, ShoppingBag, Users, Store, Tag } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingBag, Users, Store, Tag, Settings } from "lucide-react";
 import Logo from "@/components/Logo";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +9,7 @@ const NAV = [
   { to: "/admin/products", label: "Productos", icon: Package },
   { to: "/admin/categories", label: "Categorías", icon: Tag },
   { to: "/admin/customers", label: "Clientes", icon: Users },
+  { to: "/admin/settings", label: "Ajustes", icon: Settings },
 ];
 
 export default function AdminLayout() {

@@ -7,6 +7,15 @@ from ..services.settings_store import get_settings, resolve_wompi, update_settin
 
 router = APIRouter(prefix="/api/admin/settings", tags=["admin"])
 
+public_router = APIRouter(prefix="/api/settings", tags=["settings"])
+
+
+@public_router.get("/public")
+async def public_settings_view():
+    """Non-secret settings (company data) used e.g. on the printable order."""
+    settings = await get_settings()
+    return {"company": settings.get("company", {})}
+
 
 @router.get("")
 async def read_settings(_: UserPublic = Depends(get_current_admin)):

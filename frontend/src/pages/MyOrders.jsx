@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Package, Trash2 } from "lucide-react";
 import { api, apiError } from "@/lib/api";
+import { useConfirm } from "@/context/ConfirmContext";
 import { formatCOP, formatDate, ORDER_STATUS } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MyOrders() {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["my-orders"],
     queryFn: async () => (await api.get("/orders/mine")).data,
@@ -75,8 +77,15 @@ export default function MyOrders() {
                       <button
                         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-destructive"
                         disabled={deleteOrder.isPending}
-                        onClick={() => {
-                          if (window.confirm("¿Eliminar este pedido no pagado?"))
+                        onClick={async () => {
+                          if (
+                            await confirm({
+                              title: "Eliminar pedido",
+                              description: "¿Eliminar este pedido no pagado? Esta acción no se puede deshacer.",
+                              confirmText: "Eliminar",
+                              destructive: true,
+                            })
+                          )
                             deleteOrder.mutate(order.id);
                         }}
                         data-testid="my-order-delete"

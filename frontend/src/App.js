@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
+import { ConfirmProvider } from "@/context/ConfirmContext";
 import { ProtectedRoute, AdminRoute } from "@/components/RouteGuards";
 import StoreLayout from "@/components/StoreLayout";
 import AdminLayout from "@/components/AdminLayout";
@@ -16,17 +17,20 @@ import OrderConfirmation from "@/pages/OrderConfirmation";
 import MyOrders from "@/pages/MyOrders";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import OrderPrint from "@/pages/OrderPrint";
 
 import Dashboard from "@/pages/admin/Dashboard";
 import AdminOrders from "@/pages/admin/AdminOrders";
 import AdminProducts from "@/pages/admin/AdminProducts";
 import AdminCategories from "@/pages/admin/AdminCategories";
 import AdminCustomers from "@/pages/admin/AdminCustomers";
+import AdminSettings from "@/pages/admin/AdminSettings";
 
 function App() {
   return (
     <AuthProvider>
       <CartProvider>
+        <ConfirmProvider>
         <BrowserRouter>
           <Routes>
             {/* Storefront */}
@@ -62,6 +66,16 @@ function App() {
               />
             </Route>
 
+            {/* Printable order (standalone, no store chrome) */}
+            <Route
+              path="/order/:id/print"
+              element={
+                <ProtectedRoute>
+                  <OrderPrint />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Admin */}
             <Route
               element={
@@ -75,10 +89,12 @@ function App() {
               <Route path="/admin/products" element={<AdminProducts />} />
               <Route path="/admin/categories" element={<AdminCategories />} />
               <Route path="/admin/customers" element={<AdminCustomers />} />
+              <Route path="/admin/settings" element={<AdminSettings />} />
             </Route>
           </Routes>
           <Toaster richColors position="top-right" />
         </BrowserRouter>
+        </ConfirmProvider>
       </CartProvider>
     </AuthProvider>
   );

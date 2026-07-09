@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, Trash2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { CheckCircle2, Trash2, Printer } from "lucide-react";
 import { api, apiError } from "@/lib/api";
+import { useConfirm } from "@/context/ConfirmContext";
 import { formatCOP, formatDate, ORDER_STATUS, PAYMENT_STATUS } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +27,7 @@ const STATUSES = Object.keys(ORDER_STATUS);
 
 export default function AdminOrders() {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [filter, setFilter] = useState("all");
   const [selected, setSelected] = useState(null);
 
@@ -146,7 +149,14 @@ export default function AdminOrders() {
           {selected && (
             <>
               <DialogHeader>
-                <DialogTitle>Pedido #{selected.id.slice(0, 8)}</DialogTitle>
+                <DialogTitle className="flex items-center justify-between gap-2 pr-6">
+                  <span>Pedido #{selected.id.slice(0, 8)}</span>
+                  <Button asChild variant="outline" size="sm">
+                    <Link to={`/order/${selected.id}/print`} target="_blank">
+                      <Printer className="mr-2 h-4 w-4" /> Imprimir
+                    </Link>
+                  </Button>
+                </DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="rounded-lg bg-muted/50 p-4 text-sm">
@@ -242,14 +252,18 @@ export default function AdminOrders() {
                     variant="ghost"
                     className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
                     disabled={deleteOrder.isPending}
-                    onClick={() => {
+                    onClick={async () => {
                       if (
-                        window.confirm(
-                          "¿Eliminar este pedido? Esta acción no se puede deshacer." +
+                        await confirm({
+                          title: "Eliminar pedido",
+                          description:
+                            "¿Eliminar este pedido? Esta acción no se puede deshacer." +
                             (selected.payment_status === "approved"
                               ? " El stock será restaurado."
-                              : "")
-                        )
+                              : ""),
+                          confirmText: "Eliminar",
+                          destructive: true,
+                        })
                       )
                         deleteOrder.mutate(selected.id);
                     }}
