@@ -20,6 +20,9 @@ import Register from "@/pages/Register";
 import OrderPrint from "@/pages/OrderPrint";
 import InvoicePrint from "@/pages/InvoicePrint";
 import InvoiceTicket from "@/pages/InvoiceTicket";
+import PrivacyPolicy from "@/pages/legal/PrivacyPolicy";
+import CookiePolicy from "@/pages/legal/CookiePolicy";
+import Terms from "@/pages/legal/Terms";
 
 import Dashboard from "@/pages/admin/Dashboard";
 import AdminOrders from "@/pages/admin/AdminOrders";
@@ -44,6 +47,9 @@ function App() {
               <Route path="/cart" element={<Cart />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/privacidad" element={<PrivacyPolicy />} />
+              <Route path="/cookies" element={<CookiePolicy />} />
+              <Route path="/terminos" element={<Terms />} />
               <Route
                 path="/checkout"
                 element={

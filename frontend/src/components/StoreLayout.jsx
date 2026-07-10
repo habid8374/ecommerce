@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import Logo from "@/components/Logo";
+import AxentiaLogo from "@/components/AxentiaLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -65,6 +66,8 @@ export default function StoreLayout() {
   // (Colombia +57 when a 10-digit local number is entered).
   const waDigits = String(pub?.company?.whatsapp || "").replace(/\D/g, "");
   const waNumber = waDigits && !waDigits.startsWith("57") && waDigits.length === 10 ? `57${waDigits}` : waDigits;
+  const companyName = pub?.company?.name || "GRAFIBLESS";
+  const companyCity = pub?.company?.city || "";
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -173,21 +176,53 @@ export default function StoreLayout() {
         <Outlet />
       </main>
 
-      <footer className="mt-auto border-t border-white/10 bg-black py-10 text-white">
-        <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 px-4 text-center">
-          <Logo size={28} />
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/70">
-            <Link to="/" className="hover:text-white">Inicio</Link>
-            <Link to="/orders" className="hover:text-white">Mis pedidos</Link>
+      <footer className="mt-auto bg-[#0e1a2c] text-white">
+        {/* Top accent line */}
+        <div className="h-0.5 w-full bg-gradient-to-r from-[#1f8f9e] via-[#22c197] to-transparent" />
+
+        <div className="mx-auto max-w-7xl px-6 py-10">
+          {/* Brand + quick links */}
+          <div className="flex flex-col items-center gap-4 border-b border-white/10 pb-8 text-center sm:flex-row sm:justify-between sm:text-left">
+            <Logo size={28} />
+            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/70">
+              <Link to="/" className="hover:text-white">Inicio</Link>
+              <Link to="/orders" className="hover:text-white">Mis pedidos</Link>
+              <span className="text-white/40">Pagos seguros con Wompi</span>
+            </div>
+          </div>
+
+          {/* Legal row */}
+          <div className="mt-6 flex flex-col items-center gap-4 text-xs text-white/60 lg:flex-row lg:justify-between">
+            <p className="order-2 text-center lg:order-1">
+              © {new Date().getFullYear()} {companyName}
+              {companyCity ? ` · ${companyCity}, Colombia.` : " · Colombia."}
+            </p>
+            <div className="order-1 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 lg:order-2">
+              <Link to="/privacidad" className="transition-colors hover:text-white">Política de privacidad</Link>
+              <span className="text-white/25">·</span>
+              <Link to="/cookies" className="transition-colors hover:text-white">Política de cookies</Link>
+              <span className="text-white/25">·</span>
+              <Link to="/terminos" className="transition-colors hover:text-white">Términos y condiciones</Link>
+            </div>
+            <p className="order-3 text-center lg:text-right">Hecho con dedicación en el Atlántico, Colombia.</p>
+          </div>
+
+          {/* Powered by Axentia */}
+          <div className="mt-8 flex items-center justify-center gap-2 border-t border-white/10 pt-6">
+            <span className="text-xs text-white/50">Powered by</span>
+            <span className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1">
+              <AxentiaLogo size={16} />
+              <span className="text-xs font-bold tracking-tight text-[#1e2d3d]">Axentia</span>
+            </span>
             {!isAdmin && (
-              <button onClick={() => navigate("/login")} className="hover:text-white">
+              <button
+                onClick={() => navigate("/login")}
+                className="ml-3 text-[11px] text-white/30 transition-colors hover:text-white/70"
+              >
                 Admin
               </button>
             )}
           </div>
-          <p className="text-sm text-white/50">
-            © {new Date().getFullYear()} GRAFIBLESS · Pagos seguros con Wompi
-          </p>
         </div>
       </footer>
 
