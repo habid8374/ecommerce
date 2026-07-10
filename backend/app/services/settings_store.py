@@ -42,6 +42,7 @@ DEFAULTS = {
         "city": "",
         "phone": "",
         "email": "",
+        "whatsapp": "3158380306",  # floating WhatsApp button (editable in Ajustes)
     },
     # Factus electronic invoicing (DIAN). Two environments (test/production)
     # with separate credentials, like Wompi. Filled in from the admin panel.

@@ -196,6 +196,12 @@ export default function AdminSettings() {
           <Field label="Ciudad" value={form.company.city} onChange={inp("company.city")} />
           <Field label="Teléfono" value={form.company.phone} onChange={inp("company.phone")} />
           <Field label="Correo" type="email" value={form.company.email} onChange={inp("company.email")} />
+          <Field
+            label="WhatsApp (botón flotante) — vacío = oculto"
+            value={form.company.whatsapp ?? ""}
+            onChange={inp("company.whatsapp")}
+            placeholder="3158380306"
+          />
         </CardContent>
       </Card>
 
