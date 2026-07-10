@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { FileText, ExternalLink, FileMinus, FilePlus, Code, Printer } from "lucide-react";
+import { FileText, ExternalLink, FileMinus, FilePlus, Code, Printer, RefreshCw } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import { formatCOP, formatDate } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,14 +50,35 @@ export default function AdminInvoices() {
     onError: (err) => toast.error(apiError(err, "No se pudo emitir la nota")),
   });
 
+  const sync = useMutation({
+    mutationFn: () => api.post("/admin/invoices/sync"),
+    onSuccess: (res) => {
+      const n = res.data.imported ?? 0;
+      toast.success(
+        n > 0
+          ? `${n} factura(s) importada(s) desde Factus`
+          : "Todo está sincronizado — no hay facturas nuevas en Factus"
+      );
+      qc.invalidateQueries({ queryKey: ["admin-invoices"] });
+    },
+    onError: (err) => toast.error(apiError(err, "No se pudo sincronizar con Factus")),
+  });
+
   return (
     <div>
-      <div className="mb-2 flex items-center gap-2">
-        <FileText className="h-6 w-6" />
-        <h1 className="text-2xl font-bold">Facturación electrónica</h1>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <FileText className="h-6 w-6" />
+          <h1 className="text-2xl font-bold">Facturación electrónica</h1>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => sync.mutate()} disabled={sync.isPending} data-testid="sync-factus">
+          <RefreshCw className={`mr-2 h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`} />
+          {sync.isPending ? "Sincronizando..." : "Sincronizar con Factus"}
+        </Button>
       </div>
       <p className="mb-6 text-sm text-muted-foreground">
         Facturas emitidas y notas crédito/débito. La emisión se configura en Ajustes → Facturación electrónica.
+        ¿No ves facturas ya enviadas a la DIAN? Usa <b>Sincronizar con Factus</b> para traerlas e imprimirlas.
       </p>
 
       {isLoading ? (

@@ -42,6 +42,12 @@ export default function InvoicePrint() {
   const fd = safeParse(inv.factus_data);
   const bill = (fd?.data?.bill) || fd?.data || fd || {};
 
+  // Line items: prefer the local order; fall back to the invoice's own items
+  // (populated when the invoice was imported from Factus without a local order).
+  const items = order.items?.length ? order.items : inv.items || [];
+  const subtotal = order.subtotal ?? items.reduce((s, it) => s + (it.subtotal || 0), 0);
+  const shippingCost = order.shipping_cost ?? 0;
+
   const number = inv.number || bill.number || "";
   const cufe = inv.cufe || bill.cufe || bill.cude || "";
   const qr = inv.qr || bill.qr || bill.qr_image || inv.public_url || "";
@@ -127,8 +133,8 @@ export default function InvoicePrint() {
             </tr>
           </thead>
           <tbody>
-            {(order.items || []).map((it) => (
-              <tr key={it.product_id} className="border-b">
+            {items.map((it, i) => (
+              <tr key={it.product_id || i} className="border-b">
                 <td className="py-2">{it.name}</td>
                 <td className="py-2 text-center">{it.quantity}</td>
                 <td className="py-2 text-right">{formatCOP(it.price)}</td>
@@ -151,8 +157,8 @@ export default function InvoicePrint() {
             <p className="mt-1 text-[10px] text-muted-foreground">Código QR - DIAN</p>
           </div>
           <div className="w-56 space-y-1">
-            <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCOP(order.subtotal)}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Envío</span><span>{order.shipping_cost === 0 ? "—" : formatCOP(order.shipping_cost)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCOP(subtotal)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Envío</span><span>{shippingCost === 0 ? "—" : formatCOP(shippingCost)}</span></div>
             <div className="flex justify-between border-t pt-1 text-base font-bold"><span>Total</span><span>{formatCOP(inv.total || order.total)}</span></div>
           </div>
         </div>

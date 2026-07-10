@@ -170,6 +170,146 @@ async def test_connection() -> dict:
     return await asyncio.to_thread(test_connection_sync, f)
 
 
+def _to_num(v, default=0):
+    try:
+        return int(round(float(str(v).replace(",", ""))))
+    except (TypeError, ValueError):
+        return default
+
+
+def _bill_items(b: dict) -> list[dict]:
+    """Normalize a Factus bill's line items to our order-item shape."""
+    out = []
+    for it in b.get("items", []) or []:
+        if not isinstance(it, dict):
+            continue
+        qty = _to_num(it.get("quantity"), 1) or 1
+        price = _to_num(it.get("price") or it.get("unit_price"))
+        total = _to_num(it.get("total") or it.get("gross_value")) or price * qty
+        out.append({
+            "product_id": str(it.get("code_reference") or it.get("code") or ""),
+            "name": it.get("name") or it.get("description") or "",
+            "price": price,
+            "quantity": qty,
+            "subtotal": total,
+        })
+    return out
+
+
+def _map_bill(b: dict) -> dict:
+    """Normalize a Factus bill (from list or detail) for our invoices store."""
+    customer = b.get("customer") if isinstance(b.get("customer"), dict) else {}
+    name = (
+        b.get("names") or customer.get("names") or customer.get("company")
+        or customer.get("graphic_representation_name") or b.get("company") or ""
+    )
+    ident = b.get("identification") or customer.get("identification") or ""
+    number = b.get("number") or b.get("name") or ""
+    doc = str(b.get("document") or b.get("document_type") or "").lower()
+    kind = "credit_note" if "cr" in doc or "nc" in doc else (
+        "debit_note" if "deb" in doc or "nd" in doc else "invoice"
+    )
+    return {
+        "number": str(number),
+        "reference_code": b.get("reference_code") or b.get("reference") or "",
+        "cufe": b.get("cufe") or b.get("cude") or "",
+        "qr": b.get("qr") or b.get("qr_image") or b.get("qr_code") or "",
+        "public_url": b.get("public_url") or b.get("url") or "",
+        "status": b.get("status") or "",
+        "total": _to_num(b.get("total") or b.get("total_bill") or b.get("amount")),
+        "created_at": b.get("created_at") or b.get("validated") or "",
+        "customer_name": name,
+        "identification": str(ident),
+        "type": kind,
+        "items": _bill_items(b),
+        "raw": b,
+    }
+
+
+def _bill_detail_sync(f: dict, token: str, number: str) -> dict | None:
+    """Best-effort full bill detail (items, cufe, qr, urls) by number."""
+    base = f["base_url"].rstrip("/")
+    ver = _v(f)
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+    }
+    for path in (f"/{ver}/bills/show/{number}", f"/{ver}/bills/{number}"):
+        try:
+            resp = requests.get(f"{base}{path}", headers=headers, timeout=25)
+            if resp.status_code >= 300:
+                continue
+            body = resp.json()
+            data = body.get("data", body)
+            if isinstance(data, dict):
+                return data.get("bill") or data
+        except (requests.RequestException, ValueError):
+            continue
+    return None
+
+
+def list_bills_sync(f: dict) -> dict:
+    """List invoices already emitted in the Factus account (paginated)."""
+    if not (f.get("base_url") and f.get("client_id") and f.get("email")):
+        return {"ok": False, "error": "Faltan credenciales de Factus."}
+    token, err = _token_detailed(f)
+    if not token:
+        return {"ok": False, "error": err or "No se pudo autenticar."}
+    base = f["base_url"].rstrip("/")
+    ver = _v(f)
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+    }
+    bills: list[dict] = []
+    for page in range(1, 11):  # up to 10 pages
+        try:
+            resp = requests.get(f"{base}/{ver}/bills?page={page}", headers=headers, timeout=30)
+        except requests.RequestException as exc:
+            if page == 1:
+                return {"ok": False, "error": str(exc)}
+            break
+        logger.info("Factus bills page %s -> HTTP %s", page, resp.status_code)
+        if resp.status_code >= 300:
+            if page == 1:
+                return {"ok": False, "error": f"HTTP {resp.status_code}: {resp.text[:200]}"}
+            break
+        try:
+            body = resp.json()
+        except ValueError:
+            break
+        data = body.get("data", body)
+        rows = data.get("data") if isinstance(data, dict) else data
+        if not isinstance(rows, list) or not rows:
+            break
+        for b in rows:
+            if isinstance(b, dict):
+                mapped = _map_bill(b)
+                # Enrich with detail when the list lacks CUFE/items (best-effort).
+                if not mapped["cufe"] or not mapped["items"]:
+                    detail = _bill_detail_sync(f, token, mapped["number"])
+                    if detail:
+                        mapped = _map_bill(detail)
+                bills.append(mapped)
+        pag = data.get("pagination") if isinstance(data, dict) else None
+        if pag and pag.get("current_page") and pag.get("last_page"):
+            if pag["current_page"] >= pag["last_page"]:
+                break
+        elif len(rows) < 10:
+            break
+    return {"ok": True, "bills": bills}
+
+
+async def list_bills() -> dict:
+    settings = await get_settings()
+    f = settings.get("factus", {})
+    if not f.get("enabled"):
+        return {"ok": False, "error": "Facturación electrónica deshabilitada."}
+    return await asyncio.to_thread(list_bills_sync, f)
+
+
 def _customer(order: dict, f: dict) -> dict:
     doc_type = order.get("doc_type") or "CC"
     is_company = doc_type == "NIT"

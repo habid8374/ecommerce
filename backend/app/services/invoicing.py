@@ -73,3 +73,57 @@ async def create_note(db, order: dict, invoice: dict, kind: str, reason: str) ->
     """kind = 'credit' | 'debit'."""
     result = await factus.emit_note(order, kind, reason, invoice.get("number", ""))
     return await _record(db, order, f"{kind}_note", result, reason=reason)
+
+
+async def sync_from_factus(db) -> dict:
+    """Import invoices already emitted in the Factus account that aren't stored
+    locally yet, so they show up in the module and can be printed."""
+    res = await factus.list_bills()
+    if not res.get("ok"):
+        return {"ok": False, "error": res.get("error", "No se pudo consultar Factus."), "imported": 0}
+
+    imported = 0
+    for b in res.get("bills", []):
+        number = (b.get("number") or "").strip()
+        if not number:
+            continue
+        # Skip if we already have this document number stored.
+        if await db.invoices.find_one({"number": number}, {"_id": 0, "id": 1}):
+            continue
+        # Try to link back to a local order via the reference_code prefix.
+        order_id = ""
+        ref = (b.get("reference_code") or "").split("-")[0]
+        if ref:
+            match = await db.orders.find_one(
+                {"id": {"$regex": f"^{ref}"}}, {"_id": 0, "id": 1}
+            )
+            if match:
+                order_id = match["id"]
+
+        doc = {
+            "id": _uuid(),
+            "order_id": order_id,
+            "type": b.get("type", "invoice"),
+            "number": number,
+            "cufe": b.get("cufe", ""),
+            "qr": b.get("qr", ""),
+            "public_url": b.get("public_url", ""),
+            "factus_data": json.dumps(b.get("raw"), ensure_ascii=False)[:20000]
+            if b.get("raw") is not None else "",
+            "status": "emitida",
+            "total": b.get("total", 0),
+            "customer_name": b.get("customer_name", ""),
+            "customer_email": "",
+            "doc_number": b.get("identification", ""),
+            "reason": "",
+            "error": "",
+            "error_detail": "",
+            "request_payload": "",
+            "status_code": None,
+            "items": b.get("items", []),  # Factus line items for the printable copy
+            "imported": True,
+            "created_at": _now(),
+        }
+        await db.invoices.insert_one(dict(doc))
+        imported += 1
+    return {"ok": True, "imported": imported, "total": len(res.get("bills", []))}

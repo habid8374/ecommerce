@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from ..database import get_db
 from ..deps import get_current_admin
 from ..models import UserPublic
-from ..services.invoicing import create_note, emit_and_store
+from ..services.invoicing import create_note, emit_and_store, sync_from_factus
 
 router = APIRouter(prefix="/api/admin/invoices", tags=["admin"])
 orders_router = APIRouter(prefix="/api/admin/orders", tags=["admin"])
@@ -23,6 +23,18 @@ async def list_invoices(_: UserPublic = Depends(get_current_admin)):
     db = get_db()
     docs = await db.invoices.find({}, PROJECT).sort("created_at", -1).to_list(2000)
     return docs
+
+
+@router.post("/sync")
+async def sync_invoices(_: UserPublic = Depends(get_current_admin)):
+    """Import invoices already emitted in Factus that aren't stored locally."""
+    db = get_db()
+    result = await sync_from_factus(db)
+    if not result.get("ok"):
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, result.get("error", "No se pudo sincronizar con Factus.")
+        )
+    return result
 
 
 @router.get("/{invoice_id}")
