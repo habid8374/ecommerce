@@ -75,7 +75,7 @@ export default function StoreLayout() {
         {/* Main bar */}
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4">
           <Link to="/" className="flex shrink-0 items-center" aria-label="GRAFIBLESS - Inicio">
-            <Logo size={30} />
+            <img src="/logo_grafibless.jpg" alt="GRAFIBLESS" className="h-10 w-auto" />
           </Link>
 
           <SearchBar className="mx-2 hidden max-w-2xl flex-1 md:flex" />
