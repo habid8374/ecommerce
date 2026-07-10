@@ -20,6 +20,11 @@ logger = logging.getLogger(__name__)
 DOC_ID_MAP = {"TI": 2, "CC": 3, "CE": 5, "NIT": 6, "PP": 7}
 
 
+def _v(f: dict) -> str:
+    """API version prefix, e.g. 'v2'."""
+    return (f.get("api_version") or "v2").strip("/")
+
+
 def _token_detailed(f: dict):
     """Returns (token, error). Tries form-encoded (OAuth2 standard for Passport)
     then JSON, since Factus deployments have accepted both."""
@@ -53,13 +58,14 @@ def _token(f: dict) -> str | None:
 
 def _numbering_ranges_sync(f: dict, token: str) -> list[dict]:
     base = f["base_url"].rstrip("/")
+    ver = _v(f)
     headers = {
         "Authorization": f"Bearer {token}",
         "Accept": "application/json",
         "Content-Type": "application/json",
         "X-Requested-With": "XMLHttpRequest",
     }
-    for path in ("/v1/numbering-ranges", "/v1/numbering-ranges?filter[is_active]=true"):
+    for path in (f"/{ver}/numbering-ranges", f"/{ver}/numbering-ranges?filter[is_active]=true"):
         try:
             resp = requests.get(f"{base}{path}", headers=headers, timeout=20)
             logger.info("Factus %s -> HTTP %s body=%s", path, resp.status_code, resp.text[:400])
@@ -202,7 +208,7 @@ def _emit_sync(f: dict, order: dict) -> dict:
         "customer": _customer(order, f),
         "items": _items(order, f),
     }
-    result = _post(f, token, "/v1/bills/validate", payload)
+    result = _post(f, token, f"/{_v(f)}/bills/validate", payload)
     result["sent"] = payload
     return result
 
@@ -211,7 +217,8 @@ def _note_sync(f: dict, order: dict, kind: str, reason: str, invoice_number: str
     token = _token(f)
     if not token:
         return {"ok": False, "error": "No se pudo autenticar con Factus."}
-    path = "/v1/credit-notes/validate" if kind == "credit" else "/v1/debit-notes/validate"
+    ver = _v(f)
+    path = f"/{ver}/credit-notes/validate" if kind == "credit" else f"/{ver}/debit-notes/validate"
     # Credit/debit notes use their OWN DIAN numbering range (not the invoice's).
     range_key = "numbering_range_id_credit" if kind == "credit" else "numbering_range_id_debit"
     note_range = int(f.get(range_key) or f.get("numbering_range_id", 0))

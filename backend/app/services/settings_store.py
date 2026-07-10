@@ -47,6 +47,7 @@ DEFAULTS = {
     "factus": {
         "enabled": False,
         "auto_emit": True,  # emit the invoice automatically when payment is approved
+        "api_version": "v2",  # Factus API version (this account uses v2)
         "base_url": "https://api-sandbox.factus.com.co",
         "email": "",
         "password": "",

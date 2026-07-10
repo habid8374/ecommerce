@@ -191,6 +191,7 @@ export default function AdminSettings() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="URL base de Factus" value={form.factus?.base_url || ""} onChange={inp("factus.base_url")} placeholder="https://api-sandbox.factus.com.co" />
+            <Field label="Versión de API (v1 / v2)" value={form.factus?.api_version || "v2"} onChange={inp("factus.api_version")} placeholder="v2" />
             <Field label="Rango numeración FACTURA (ej: 389)" type="number" value={form.factus?.numbering_range_id || 0} onChange={(e) => set("factus.numbering_range_id")(Number(e.target.value))} />
             <Field label="Rango numeración NOTA CRÉDITO (ej: 390)" type="number" value={form.factus?.numbering_range_id_credit || 0} onChange={(e) => set("factus.numbering_range_id_credit")(Number(e.target.value))} />
             <Field label="Rango numeración NOTA DÉBITO (ej: 391)" type="number" value={form.factus?.numbering_range_id_debit || 0} onChange={(e) => set("factus.numbering_range_id_debit")(Number(e.target.value))} />
