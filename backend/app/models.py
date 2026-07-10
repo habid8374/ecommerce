@@ -144,7 +144,8 @@ class ProductBase(BaseModel):
     cost: int = Field(default=0, ge=0, description="Unit cost (COP) for valuation")
     tax_rate: int = Field(default=0, ge=0, le=100, description="IVA % for this item")
     low_stock_threshold: int = Field(default=5, ge=0)
-    sku: str = Field(default="", max_length=60)
+    sku: str = Field(default="", max_length=60)          # código interno propio
+    barcode: str = Field(default="", max_length=60)      # código de barras del fabricante (EAN/UPC)
     is_service: bool = False  # services don't track stock
 
     @field_validator("category")
@@ -169,6 +170,7 @@ class ProductUpdate(BaseModel):
     tax_rate: Optional[int] = Field(default=None, ge=0, le=100)
     low_stock_threshold: Optional[int] = Field(default=None, ge=0)
     sku: Optional[str] = Field(default=None, max_length=60)
+    barcode: Optional[str] = Field(default=None, max_length=60)
     is_service: Optional[bool] = None
 
 

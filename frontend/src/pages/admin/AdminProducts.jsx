@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ScanLine, Wand2 } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import { useConfirm } from "@/context/ConfirmContext";
+import BarcodeScanner from "@/components/BarcodeScanner";
 import { formatCOP } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ const EMPTY = {
   tax_rate: 0,
   low_stock_threshold: 5,
   sku: "",
+  barcode: "",
   is_service: false,
 };
 
@@ -57,6 +59,14 @@ export default function AdminProducts() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
   const [newCat, setNewCat] = useState(false);
+  const [scanning, setScanning] = useState(false);
+
+  const genSku = () => {
+    const prefix =
+      (form.category || "GEN").replace(/[^a-zA-Z0-9]/g, "").slice(0, 4).toUpperCase() || "GEN";
+    const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+    setForm((f) => ({ ...f, sku: `${prefix}-${rand}` }));
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-products"],
@@ -275,7 +285,7 @@ export default function AdminProducts() {
                 </Select>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="cost">Costo (COP)</Label>
                 <Input id="cost" type="number" min="0" value={form.cost} onChange={update("cost")} />
@@ -288,9 +298,25 @@ export default function AdminProducts() {
                 <Label htmlFor="low_stock_threshold">Stock mínimo</Label>
                 <Input id="low_stock_threshold" type="number" min="0" value={form.low_stock_threshold} onChange={update("low_stock_threshold")} />
               </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="sku">SKU</Label>
-                <Input id="sku" value={form.sku} onChange={update("sku")} placeholder="Opcional" />
+                <Label htmlFor="sku">SKU (código interno)</Label>
+                <div className="flex gap-2">
+                  <Input id="sku" value={form.sku} onChange={update("sku")} placeholder="Opcional" />
+                  <Button type="button" variant="outline" onClick={genSku} title="Generar SKU automático">
+                    <Wand2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="barcode">Código de barras (fabricante)</Label>
+                <div className="flex gap-2">
+                  <Input id="barcode" value={form.barcode} onChange={update("barcode")} placeholder="EAN / UPC" />
+                  <Button type="button" variant="outline" onClick={() => setScanning(true)} title="Escanear con la cámara">
+                    <ScanLine className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
             <div className="space-y-2">
@@ -324,6 +350,15 @@ export default function AdminProducts() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BarcodeScanner
+        open={scanning}
+        onClose={() => setScanning(false)}
+        onDetected={(code) => {
+          setForm((f) => ({ ...f, barcode: code }));
+          toast.success(`Código escaneado: ${code}`);
+        }}
+      />
     </div>
   );
 }

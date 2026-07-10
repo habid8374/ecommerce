@@ -26,6 +26,7 @@ def _row(p: dict) -> dict:
         "id": p["id"],
         "name": p.get("name", ""),
         "sku": p.get("sku", ""),
+        "barcode": p.get("barcode", ""),
         "category": p.get("category", ""),
         "stock": stock,
         "cost": cost,
@@ -98,7 +99,7 @@ async def export_inventory(_: UserPublic = Depends(get_current_admin)):
     ws = wb.active
     ws.title = "Existencias"
     ws.append([
-        "Producto", "SKU", "Categoría", "Tipo", "Stock", "Costo unit.",
+        "Producto", "SKU", "Código barras", "Categoría", "Tipo", "Stock", "Costo unit.",
         "Valor costo", "Precio", "Valor venta", "IVA %", "Mínimo", "Estado",
     ])
     for cell in ws[1]:
@@ -110,7 +111,7 @@ async def export_inventory(_: UserPublic = Depends(get_current_admin)):
         # in Estado (the Tipo column already says it).
         estado = "" if svc else ("Agotado" if r["out"] else ("Bajo" if r["low"] else "OK"))
         ws.append([
-            r["name"], r["sku"], r["category"], "Servicio" if svc else "Producto",
+            r["name"], r["sku"], r["barcode"], r["category"], "Servicio" if svc else "Producto",
             "" if svc else r["stock"], r["cost"],
             "" if svc else r["cost_value"], r["price"],
             "" if svc else r["retail_value"], r["tax_rate"],

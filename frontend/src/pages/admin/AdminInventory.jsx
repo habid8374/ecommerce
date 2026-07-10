@@ -113,6 +113,7 @@ export default function AdminInventory() {
       !q ||
       r.name.toLowerCase().includes(q.toLowerCase()) ||
       (r.sku || "").toLowerCase().includes(q.toLowerCase()) ||
+      (r.barcode || "").toLowerCase().includes(q.toLowerCase()) ||
       (r.category || "").toLowerCase().includes(q.toLowerCase())
   );
   const categories = [...new Set((data?.items || []).map((r) => r.category).filter(Boolean))];
@@ -148,7 +149,7 @@ export default function AdminInventory() {
           </div>
 
           <div className="mb-3">
-            <Input placeholder="Buscar por nombre, SKU o categoría..." value={q} onChange={(e) => setQ(e.target.value)} className="max-w-sm" />
+            <Input placeholder="Buscar por nombre, SKU, código de barras o categoría..." value={q} onChange={(e) => setQ(e.target.value)} className="max-w-sm" />
           </div>
 
           <Card>
