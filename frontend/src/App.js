@@ -19,6 +19,7 @@ import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import OrderPrint from "@/pages/OrderPrint";
 import InvoicePrint from "@/pages/InvoicePrint";
+import InvoiceTicket from "@/pages/InvoiceTicket";
 
 import Dashboard from "@/pages/admin/Dashboard";
 import AdminOrders from "@/pages/admin/AdminOrders";
@@ -85,6 +86,16 @@ function App() {
               element={
                 <AdminRoute>
                   <InvoicePrint />
+                </AdminRoute>
+              }
+            />
+
+            {/* Printable electronic invoice — thermal ticket (tirilla) */}
+            <Route
+              path="/invoice/:id/ticket"
+              element={
+                <AdminRoute>
+                  <InvoiceTicket />
                 </AdminRoute>
               }
             />

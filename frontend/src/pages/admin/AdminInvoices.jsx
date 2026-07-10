@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { FileText, ExternalLink, FileMinus, FilePlus, Code, Printer, RefreshCw, Trash2, Unlock } from "lucide-react";
+import { FileText, ExternalLink, FileMinus, FilePlus, Code, Printer, RefreshCw, Trash2, Unlock, Receipt } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import { useConfirm } from "@/context/ConfirmContext";
 import { formatCOP, formatDate } from "@/lib/format";
@@ -228,11 +228,18 @@ export default function AdminInvoices() {
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
                           {inv.status === "emitida" && (
-                            <Button asChild variant="ghost" size="icon" title="Representación gráfica (imprimir)">
-                              <Link to={`/invoice/${inv.id}/print`} target="_blank">
-                                <Printer className="h-4 w-4" />
-                              </Link>
-                            </Button>
+                            <>
+                              <Button asChild variant="ghost" size="icon" title="Representación gráfica (hoja)">
+                                <Link to={`/invoice/${inv.id}/print`} target="_blank">
+                                  <Printer className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                              <Button asChild variant="ghost" size="icon" title="Tirilla (tiquete 80mm)">
+                                <Link to={`/invoice/${inv.id}/ticket`} target="_blank">
+                                  <Receipt className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                            </>
                           )}
                           {inv.status !== "emitida" && inv.order_id && (
                             <Button variant="ghost" size="sm" onClick={() => retry.mutate(inv.order_id)} disabled={retry.isPending} title="Reintentar emisión">
