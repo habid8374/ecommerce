@@ -15,33 +15,12 @@ const SERVICES = [
   { icon: PenTool, label: "DISEÑO GRÁFICO" },
 ];
 
-/** Water-splash accent (stylized, evokes the storefront sign). */
-function Splash({ className = "" }) {
-  return (
-    <svg viewBox="0 0 200 200" className={className} aria-hidden="true">
-      <g fill={NEON}>
-        <path
-          opacity="0.85"
-          d="M60 30c-18 14-30 40-24 62 5 20 26 34 47 32 18-2 33-16 37-33 5-22-6-46-24-58-6 12-18 20-30 22 0-9-2-18-6-27z"
-        />
-        <circle cx="128" cy="52" r="9" opacity="0.8" />
-        <circle cx="150" cy="80" r="6" opacity="0.7" />
-        <circle cx="40" cy="120" r="7" opacity="0.7" />
-        <circle cx="150" cy="120" r="10" opacity="0.6" />
-        <circle cx="95" cy="160" r="6" opacity="0.6" />
-        <circle cx="70" cy="150" r="4" opacity="0.7" />
-        <circle cx="135" cy="150" r="4" opacity="0.7" />
-      </g>
-    </svg>
-  );
-}
-
 function Hero() {
   return (
-    <section className="relative mb-8 overflow-hidden rounded-2xl border border-white/10 bg-black text-white">
-      {/* Background video (muted/looping, with a dark overlay for legibility) */}
+    <section className="relative mb-8 flex min-h-[440px] flex-col justify-between overflow-hidden rounded-2xl border border-white/10 bg-black p-6 text-white sm:min-h-[500px] sm:p-8 lg:min-h-[560px] lg:p-10">
+      {/* Background video (muted/looping) */}
       <video
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-60 motion-reduce:hidden"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover motion-reduce:hidden"
         src="/hero.mp4"
         autoPlay
         muted
@@ -50,70 +29,43 @@ function Hero() {
         preload="metadata"
         aria-hidden="true"
       />
-      {/* Dark + blue overlay so text/logo stay readable over the video */}
+      {/* Overlay: darker on the left/bottom for text; center-right stays clear so
+          the video is visible. */}
       <div
         className="pointer-events-none absolute inset-0"
-        style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.7)), radial-gradient(120% 80% at 50% -10%, rgba(47,107,255,0.28), transparent 60%)" }}
+        style={{ background: "linear-gradient(90deg, rgba(4,8,18,0.88) 0%, rgba(4,8,18,0.45) 45%, rgba(4,8,18,0.12) 100%), linear-gradient(0deg, rgba(4,8,18,0.85), transparent 55%)" }}
       />
-      {/* Top spotlights */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center gap-16 sm:gap-24">
-        {[0, 1, 2, 3].map((i) => (
+
+      {/* Top — logo in the corner */}
+      <div className="relative flex items-center justify-between gap-4">
+        <img src="/logo_grafibless.jpg" alt="GRAFIBLESS" className="h-12 w-auto rounded-lg shadow-lg sm:h-16" />
+        <p className="hidden text-xs font-semibold uppercase tracking-[0.25em] text-white/80 sm:block">
+          Impresión DTF &amp; Estampados
+        </p>
+      </div>
+
+      {/* Middle — headline */}
+      <h1 className="relative max-w-xl text-3xl font-black leading-tight tracking-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)] sm:text-5xl">
+        CALIDAD QUE{" "}
+        <span style={{ color: NEON }} className="drop-shadow-[0_0_12px_rgba(47,107,255,0.8)]">SE VE,</span>
+        <br />
+        DURABILIDAD<br />QUE SE SIENTE.
+      </h1>
+
+      {/* Bottom — service chips */}
+      <div className="relative flex flex-wrap gap-2">
+        {SERVICES.map(({ icon: Icon, label }) => (
           <span
-            key={i}
-            className="h-1.5 w-1.5 rounded-full bg-white"
-            style={{ boxShadow: "0 0 16px 6px rgba(255,255,255,0.55), 0 18px 40px 10px rgba(47,107,255,0.25)" }}
-          />
+            key={label}
+            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide backdrop-blur-sm sm:text-xs"
+          >
+            <Icon className="h-4 w-4" style={{ color: NEON }} /> {label}
+          </span>
         ))}
       </div>
 
-      <div className="relative grid items-center gap-8 px-6 py-10 sm:px-10 lg:grid-cols-[0.95fr_1.25fr_0.9fr] lg:gap-4">
-        {/* Left — tagline + splash */}
-        <div className="relative order-2 lg:order-1">
-          <Splash className="pointer-events-none absolute -left-6 -top-6 h-40 w-40 opacity-30 blur-[1px] sm:h-48 sm:w-48" />
-          <p className="relative text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
-            CALIDAD QUE{" "}
-            <span style={{ color: NEON }} className="drop-shadow-[0_0_10px_rgba(47,107,255,0.7)]">
-              SE VE,
-            </span>
-            <br />
-            DURABILIDAD<br />QUE SE SIENTE.
-          </p>
-        </div>
-
-        {/* Center — official GRAFIBLESS logo */}
-        <div className="order-1 flex flex-col items-center border-white/10 text-center lg:order-2 lg:border-x lg:px-6">
-          <img
-            src="/logo_grafibless.jpg"
-            alt="GRAFIBLESS"
-            className="w-full max-w-[340px] drop-shadow-[0_0_28px_rgba(47,107,255,0.35)]"
-          />
-          <div className="mt-3 flex w-full items-center justify-center gap-3">
-            <span className="h-px flex-1 max-w-[60px]" style={{ background: `linear-gradient(90deg, transparent, ${NEON})` }} />
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/85 sm:text-sm">
-              Impresión DTF &amp; Estampados
-            </p>
-            <span className="h-px flex-1 max-w-[60px]" style={{ background: `linear-gradient(90deg, ${NEON}, transparent)` }} />
-          </div>
-        </div>
-
-        {/* Right — services */}
-        <div className="order-3 space-y-4">
-          {SERVICES.map(({ icon: Icon, label }) => (
-            <div key={label} className="flex items-center gap-3">
-              <span
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border"
-                style={{ borderColor: "rgba(47,107,255,0.5)", boxShadow: "0 0 14px rgba(47,107,255,0.25) inset" }}
-              >
-                <Icon className="h-4 w-4" style={{ color: NEON }} />
-              </span>
-              <span className="text-sm font-semibold uppercase tracking-wide text-white/90">{label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Bottom neon line */}
-      <div className="h-1 w-full" style={{ background: NEON, boxShadow: `0 0 18px 2px ${NEON}` }} />
+      <div className="absolute inset-x-0 bottom-0 h-1" style={{ background: NEON, boxShadow: `0 0 18px 2px ${NEON}` }} />
     </section>
   );
 }
