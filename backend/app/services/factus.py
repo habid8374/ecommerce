@@ -9,6 +9,7 @@ they depend on the merchant's Factus account.
 """
 import asyncio
 import logging
+import time
 
 import requests
 
@@ -268,9 +269,13 @@ def _emit_sync(f: dict, order: dict) -> dict:
     token = _token(f)
     if not token:
         return {"ok": False, "error": "No se pudo autenticar con Factus (revisa credenciales)."}
+    # reference_code must be unique per emission: Factus rejects a repeated
+    # reference with 409 ("factura pendiente por enviar a la DIAN"). Append a
+    # short timestamp so each attempt is a brand-new document.
+    ref = f"{order['id'][:12]}-{int(time.time())}"
     payload = {
         "numbering_range_id": int(f.get("numbering_range_id", 0)),
-        "reference_code": order["id"][:20],
+        "reference_code": ref,
         "observation": "",
         "payment_details": _payment_details(order, f),
         "customer": _customer(order, f),
@@ -290,9 +295,10 @@ def _note_sync(f: dict, order: dict, kind: str, reason: str, invoice_number: str
     # Credit/debit notes use their OWN DIAN numbering range (not the invoice's).
     range_key = "numbering_range_id_credit" if kind == "credit" else "numbering_range_id_debit"
     note_range = int(f.get(range_key) or f.get("numbering_range_id", 0))
+    ref = f"{order['id'][:10]}-{kind[:2]}-{int(time.time())}"
     payload = {
         "numbering_range_id": note_range,
-        "reference_code": f"{order['id'][:16]}-{kind[:2]}",
+        "reference_code": ref,
         "bill_number": invoice_number,
         "correction_concept_code": "2",  # 2=Anulación/Ajuste (adjust per DIAN)
         "observation": reason or "",
