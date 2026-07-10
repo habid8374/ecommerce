@@ -37,6 +37,20 @@ async def sync_invoices(_: UserPublic = Depends(get_current_admin)):
     return result
 
 
+@router.post("/unblock-factus")
+async def unblock_factus(_: UserPublic = Depends(get_current_admin)):
+    """Delete Factus bills stuck as unvalidated (status 0) that block the
+    numbering queue with 409 'factura pendiente por enviar a la DIAN'."""
+    from ..services.factus import unblock_pending
+
+    result = await unblock_pending()
+    if not result.get("ok"):
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, result.get("error", "No se pudo desbloquear.")
+        )
+    return result
+
+
 @router.delete("/imported")
 async def delete_imported(_: UserPublic = Depends(get_current_admin)):
     """Remove all invoices brought in via Sync (the shared Factus sandbox

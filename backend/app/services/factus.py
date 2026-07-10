@@ -305,6 +305,98 @@ async def list_bills() -> dict:
     return await asyncio.to_thread(list_bills_sync, f)
 
 
+def _raw_bills(f: dict, token: str) -> list[dict]:
+    """Raw bill rows from GET /bills (first pages) — keeps numeric status."""
+    base = f["base_url"].rstrip("/")
+    ver = _v(f)
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+    }
+    rows: list[dict] = []
+    for page in range(1, 6):
+        try:
+            resp = requests.get(f"{base}/{ver}/bills?page={page}", headers=headers, timeout=30)
+        except requests.RequestException:
+            break
+        if resp.status_code >= 300:
+            break
+        try:
+            body = resp.json()
+        except ValueError:
+            break
+        data = body.get("data", body)
+        page_rows = data.get("data") if isinstance(data, dict) else data
+        if not isinstance(page_rows, list) or not page_rows:
+            break
+        rows.extend([r for r in page_rows if isinstance(r, dict)])
+        pag = data.get("pagination") if isinstance(data, dict) else None
+        if pag and pag.get("current_page") and pag.get("last_page"):
+            if pag["current_page"] >= pag["last_page"]:
+                break
+        elif len(page_rows) < 10:
+            break
+    return rows
+
+
+def _is_pending(b: dict) -> bool:
+    """A bill that was created but not validated by the DIAN (status 0). These
+    block the numbering queue and must be deleted before emitting again."""
+    st = b.get("status")
+    if st in (0, "0"):
+        return True
+    if isinstance(st, str) and "pend" in st.lower():
+        return True
+    return False
+
+
+def _delete_bill_sync(f: dict, token: str, reference_code: str) -> dict:
+    """DELETE an unvalidated bill by its reference_code (frees the queue)."""
+    base = f["base_url"].rstrip("/")
+    ver = _v(f)
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+    }
+    url = f"{base}/{ver}/bills/destroy/reference/{reference_code}"
+    try:
+        resp = requests.delete(url, headers=headers, timeout=25)
+        logger.info("Factus delete bill %s -> HTTP %s", reference_code, resp.status_code)
+        return {"ok": resp.status_code < 300, "status_code": resp.status_code}
+    except requests.RequestException as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+def unblock_pending_sync(f: dict, token: str | None = None) -> dict:
+    """Find bills stuck as unvalidated (status 0) and delete them so the
+    numbering range stops returning 409 'factura pendiente por enviar a la DIAN'."""
+    if not (f.get("base_url") and f.get("client_id") and f.get("email")):
+        return {"ok": False, "error": "Faltan credenciales de Factus.", "deleted": []}
+    if token is None:
+        token, err = _token_detailed(f)
+        if not token:
+            return {"ok": False, "error": err or "No se pudo autenticar.", "deleted": []}
+    deleted, failed = [], []
+    for b in _raw_bills(f, token):
+        if not _is_pending(b):
+            continue
+        ref = b.get("reference_code") or b.get("reference")
+        if not ref:
+            continue
+        res = _delete_bill_sync(f, token, ref)
+        (deleted if res.get("ok") else failed).append(ref)
+    return {"ok": True, "deleted": deleted, "failed": failed}
+
+
+async def unblock_pending() -> dict:
+    f = resolve_factus(await get_settings())
+    if not f.get("enabled"):
+        return {"ok": False, "error": "Facturación electrónica deshabilitada."}
+    return await asyncio.to_thread(unblock_pending_sync, f, None)
+
+
 def _customer(order: dict, f: dict) -> dict:
     doc_type = order.get("doc_type") or "CC"
     is_company = doc_type == "NIT"
@@ -447,6 +539,15 @@ def _emit_sync(f: dict, order: dict) -> dict:
         "items": items,
     }
     result = _post(f, token, f"/{_v(f)}/bills/validate", payload)
+    # 409 = a previous unvalidated bill is blocking the numbering queue. Delete
+    # the stuck bills and retry once (the documented recovery).
+    if not result.get("ok") and result.get("status_code") == 409:
+        unblock = unblock_pending_sync(f, token)
+        result["unblocked"] = unblock.get("deleted")
+        if unblock.get("deleted"):
+            logger.info("Factus: unblocked %s pending bill(s), retrying emit", len(unblock["deleted"]))
+            result = _post(f, token, f"/{_v(f)}/bills/validate", payload)
+            result["unblocked"] = unblock.get("deleted")
     result["sent"] = payload
     return result
 
@@ -473,6 +574,12 @@ def _note_sync(f: dict, order: dict, kind: str, reason: str, invoice_number: str
         "items": items,
     }
     result = _post(f, token, path, payload)
+    if not result.get("ok") and result.get("status_code") == 409:
+        unblock = unblock_pending_sync(f, token)
+        result["unblocked"] = unblock.get("deleted")
+        if unblock.get("deleted"):
+            result = _post(f, token, path, payload)
+            result["unblocked"] = unblock.get("deleted")
     result["sent"] = payload
     return result
 

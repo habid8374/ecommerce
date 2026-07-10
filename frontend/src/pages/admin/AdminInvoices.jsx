@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { FileText, ExternalLink, FileMinus, FilePlus, Code, Printer, RefreshCw, Trash2 } from "lucide-react";
+import { FileText, ExternalLink, FileMinus, FilePlus, Code, Printer, RefreshCw, Trash2, Unlock } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import { useConfirm } from "@/context/ConfirmContext";
 import { formatCOP, formatDate } from "@/lib/format";
@@ -50,6 +50,20 @@ export default function AdminInvoices() {
       qc.invalidateQueries({ queryKey: ["admin-invoices"] });
     },
     onError: (err) => toast.error(apiError(err, "No se pudo emitir la nota")),
+  });
+
+  const unblock = useMutation({
+    mutationFn: () => api.post("/admin/invoices/unblock-factus"),
+    onSuccess: (res) => {
+      const n = res.data.deleted?.length ?? 0;
+      toast.success(
+        n > 0
+          ? `${n} factura(s) pendiente(s) eliminada(s) — la cola quedó libre. Reintenta emitir.`
+          : "No había facturas pendientes bloqueando la cola."
+      );
+      qc.invalidateQueries({ queryKey: ["admin-invoices"] });
+    },
+    onError: (err) => toast.error(apiError(err, "No se pudo desbloquear la cola")),
   });
 
   const sync = useMutation({
@@ -139,6 +153,10 @@ export default function AdminInvoices() {
               {removeImported.isPending ? "Eliminando..." : "Eliminar importadas"}
             </Button>
           )}
+          <Button variant="outline" size="sm" onClick={() => unblock.mutate()} disabled={unblock.isPending} title="Elimina facturas pendientes (status 0) que bloquean la numeración" data-testid="unblock-factus">
+            <Unlock className={`mr-2 h-4 w-4 ${unblock.isPending ? "animate-pulse" : ""}`} />
+            {unblock.isPending ? "Desbloqueando..." : "Desbloquear cola"}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => sync.mutate()} disabled={sync.isPending} data-testid="sync-factus">
             <RefreshCw className={`mr-2 h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`} />
             {sync.isPending ? "Sincronizando..." : "Sincronizar con Factus"}
