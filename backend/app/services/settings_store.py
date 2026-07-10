@@ -57,12 +57,14 @@ DEFAULTS = {
         "numbering_range_id_credit": 0,   # Nota crédito (ej: 390 NC)
         "numbering_range_id_debit": 0,    # Nota débito (ej: 391 ND)
         "default_iva": 0,  # % IVA applied to items (0 or 19)
-        # DIAN catalog values (defaults; adjust to your account).
-        "municipality_id": 980,        # Barranquilla
+        # DIAN catalog values — API v2 (codes, adjust to your account).
+        "municipality_code": "08001",  # Barranquilla (DANE)
         "payment_form": "1",           # 1=contado, 2=crédito
         "payment_method_code": "10",   # 10=efectivo (contraentrega), 42=transferencia
-        "customer_tribute_id": 21,     # 21=No responsable de IVA
-        "unit_measure_id": 70,         # 70=unidad
+        "customer_tribute_code": "21", # 21=No responsable de IVA
+        "unit_measure_code": "70",     # 70=unidad
+        "standard_code": "999",        # 999=estándar de adopción del contribuyente
+        "tax_code": "01",              # 01=IVA
     },
     "shipping": {
         # Free national (carrier) shipping over this subtotal (0 disables it).

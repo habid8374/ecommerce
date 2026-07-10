@@ -16,7 +16,10 @@ async def _record(db, order: dict, kind: str, result: dict, reason: str = "") ->
         "type": kind,  # invoice | credit_note | debit_note
         "number": result.get("number") or "",
         "cufe": result.get("cufe") or "",
+        "qr": result.get("qr") or "",
         "public_url": result.get("public_url") or "",
+        "factus_data": json.dumps(result.get("raw"), ensure_ascii=False)[:20000]
+        if result.get("ok") and result.get("raw") is not None else "",
         "status": "emitida" if result.get("ok") else "error",
         "total": order.get("total", 0),
         "customer_name": order.get("customer_name", ""),

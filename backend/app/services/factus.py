@@ -16,8 +16,8 @@ from .settings_store import get_settings
 
 logger = logging.getLogger(__name__)
 
-# GRAFIBLESS doc type -> DIAN identification_document_id.
-DOC_ID_MAP = {"TI": 2, "CC": 3, "CE": 5, "NIT": 6, "PP": 7}
+# GRAFIBLESS doc type -> DIAN identification document code (API v2).
+DOC_CODE_MAP = {"RC": "11", "TI": "12", "CC": "13", "CE": "22", "NIT": "31", "PP": "41"}
 
 
 def _v(f: dict) -> str:
@@ -122,15 +122,16 @@ async def test_connection() -> dict:
 def _customer(order: dict, f: dict) -> dict:
     doc_type = order.get("doc_type") or "CC"
     is_company = doc_type == "NIT"
+    addr = order.get("shipping_address") or {}
     cust = {
         "identification": order.get("doc_number") or "222222222222",
-        "identification_document_id": DOC_ID_MAP.get(doc_type, 3),
-        "legal_organization_id": 1 if is_company else 2,
-        "tribute_id": int(f.get("customer_tribute_id", 21)),
-        "municipality_id": int(f.get("municipality_id", 980)),
+        "identification_document_code": DOC_CODE_MAP.get(doc_type, "13"),
+        "legal_organization_code": "1" if is_company else "2",
+        "tribute_code": str(f.get("customer_tribute_code", "21")),
+        "municipality_code": str(f.get("municipality_code", "08001")),
         "email": order.get("customer_email", ""),
-        "address": (order.get("shipping_address") or {}).get("address", ""),
-        "phone": (order.get("shipping_address") or {}).get("phone", ""),
+        "address": addr.get("address", ""),
+        "phone": addr.get("phone", ""),
     }
     if is_company:
         cust["company"] = order.get("customer_name", "")
@@ -141,23 +142,32 @@ def _customer(order: dict, f: dict) -> dict:
 
 def _items(order: dict, f: dict) -> list[dict]:
     iva = f"{float(f.get('default_iva', 0)):.2f}"
-    unit = int(f.get("unit_measure_id", 70))
+    unit = str(f.get("unit_measure_code", "70"))
+    std = str(f.get("standard_code", "999"))
+    tax_code = str(f.get("tax_code", "01"))
     items = []
     for it in order.get("items", []):
         items.append({
-            "code_reference": it.get("product_id", "")[:20] or "ITEM",
+            "code_reference": (it.get("product_id") or "ITEM")[:20],
             "name": it.get("name", ""),
             "quantity": int(it.get("quantity", 1)),
             "discount_rate": 0,
             "price": int(it.get("price", 0)),
-            "tax_rate": iva,
-            "unit_measure_id": unit,
-            "standard_code_id": 1,
-            "is_excluded": 0,
-            "tribute_id": 1,  # IVA
-            "withholding_taxes": [],
+            "unit_measure_code": unit,
+            "standard_code": std,
+            "taxes": [{"code": tax_code, "rate": iva}],
         })
     return items
+
+
+def _payment_details(order: dict, f: dict) -> list[dict]:
+    from datetime import date
+    return [{
+        "payment_form": str(f.get("payment_form", "1")),
+        "payment_method_code": str(f.get("payment_method_code", "10")),
+        "amount": f"{int(order.get('total', 0)):.2f}",
+        "due_date": date.today().isoformat(),
+    }]
 
 
 def _post(f: dict, token: str, path: str, payload: dict) -> dict:
@@ -181,12 +191,14 @@ def _post(f: dict, token: str, path: str, payload: dict) -> dict:
             msg = data.get("message") or str(data)[:300]
             logger.warning("Factus %s failed (%s): %s", path, resp.status_code, str(data)[:600])
             return {"ok": False, "error": msg, "status_code": resp.status_code, "raw": data}
-        bill = (data.get("data") or {}).get("bill") or (data.get("data") or {})
+        outer = data.get("data") or {}
+        bill = outer.get("bill") or outer
         return {
             "ok": True,
             "number": bill.get("number") or bill.get("name"),
             "cufe": bill.get("cufe") or bill.get("cude"),
-            "public_url": bill.get("public_url") or bill.get("qr_image"),
+            "qr": bill.get("qr") or bill.get("qr_image") or bill.get("qr_code"),
+            "public_url": bill.get("public_url") or bill.get("url") or bill.get("qr_image"),
             "status": bill.get("status", "emitida"),
             "raw": data,
         }
@@ -203,8 +215,7 @@ def _emit_sync(f: dict, order: dict) -> dict:
         "numbering_range_id": int(f.get("numbering_range_id", 0)),
         "reference_code": order["id"][:20],
         "observation": "",
-        "payment_form": str(f.get("payment_form", "1")),
-        "payment_method_code": str(f.get("payment_method_code", "10")),
+        "payment_details": _payment_details(order, f),
         "customer": _customer(order, f),
         "items": _items(order, f),
     }
@@ -228,6 +239,7 @@ def _note_sync(f: dict, order: dict, kind: str, reason: str, invoice_number: str
         "bill_number": invoice_number,
         "correction_concept_code": "2",  # 2=Anulación/Ajuste (adjust per DIAN)
         "observation": reason or "",
+        "payment_details": _payment_details(order, f),
         "customer": _customer(order, f),
         "items": _items(order, f),
     }

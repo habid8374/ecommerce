@@ -204,11 +204,13 @@ export default function AdminSettings() {
             <summary className="cursor-pointer text-sm font-medium">Catálogos DIAN (avanzado)</summary>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <Field label="IVA por defecto (%)" type="number" value={form.factus?.default_iva || 0} onChange={(e) => set("factus.default_iva")(Number(e.target.value))} />
-              <Field label="Municipio (municipality_id)" type="number" value={form.factus?.municipality_id || 0} onChange={(e) => set("factus.municipality_id")(Number(e.target.value))} />
+              <Field label="Municipio (municipality_code, DANE)" value={form.factus?.municipality_code || ""} onChange={inp("factus.municipality_code")} placeholder="08001" />
               <Field label="Forma de pago (payment_form)" value={form.factus?.payment_form || ""} onChange={inp("factus.payment_form")} />
               <Field label="Método de pago (payment_method_code)" value={form.factus?.payment_method_code || ""} onChange={inp("factus.payment_method_code")} />
-              <Field label="Tributo del cliente (customer_tribute_id)" type="number" value={form.factus?.customer_tribute_id || 0} onChange={(e) => set("factus.customer_tribute_id")(Number(e.target.value))} />
-              <Field label="Unidad de medida (unit_measure_id)" type="number" value={form.factus?.unit_measure_id || 0} onChange={(e) => set("factus.unit_measure_id")(Number(e.target.value))} />
+              <Field label="Tributo del cliente (tribute_code)" value={form.factus?.customer_tribute_code || ""} onChange={inp("factus.customer_tribute_code")} placeholder="21" />
+              <Field label="Unidad de medida (unit_measure_code)" value={form.factus?.unit_measure_code || ""} onChange={inp("factus.unit_measure_code")} placeholder="70" />
+              <Field label="Código estándar (standard_code)" value={form.factus?.standard_code || ""} onChange={inp("factus.standard_code")} placeholder="999" />
+              <Field label="Código de impuesto (tax_code)" value={form.factus?.tax_code || ""} onChange={inp("factus.tax_code")} placeholder="01" />
             </div>
           </details>
           <div className="flex flex-wrap items-center gap-3">
