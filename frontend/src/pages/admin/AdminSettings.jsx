@@ -295,6 +295,23 @@ export default function AdminSettings() {
                   </div>
                 </div>
               )}
+
+              {/* Debug: which catalog endpoints responded */}
+              {factusData.catalog_debug &&
+                ((factusData.tributes || []).length === 0 || (factusData.unit_measures || []).length === 0) && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs">
+                    <p className="mb-1 font-medium text-amber-800">
+                      Diagnóstico de catálogos (endpoints probados)
+                    </p>
+                    <pre className="overflow-auto text-amber-900">
+                      {JSON.stringify(factusData.catalog_debug, null, 2)}
+                    </pre>
+                    <p className="mt-1 text-amber-700">
+                      Mándame esta info; con el status de cada endpoint sé cuál usar. Mientras
+                      tanto, escribe la unidad <b>94</b> a mano.
+                    </p>
+                  </div>
+                )}
             </div>
           )}
           <p className="text-xs text-muted-foreground">

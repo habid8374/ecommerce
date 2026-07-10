@@ -97,7 +97,8 @@ def _numbering_ranges_sync(f: dict, token: str) -> list[dict]:
     return []
 
 
-def _catalog_sync(f: dict, token: str, path: str) -> list[dict]:
+def _catalog_once(f: dict, token: str, path: str):
+    """Returns (items, http_status)."""
     base = f["base_url"].rstrip("/")
     ver = _v(f)
     headers = {
@@ -108,14 +109,14 @@ def _catalog_sync(f: dict, token: str, path: str) -> list[dict]:
     }
     try:
         resp = requests.get(f"{base}/{ver}/{path}", headers=headers, timeout=20)
-        logger.info("Factus catalog %s -> HTTP %s body=%s", path, resp.status_code, resp.text[:500])
+        logger.info("Factus catalog %s -> HTTP %s body=%s", path, resp.status_code, resp.text[:400])
         if resp.status_code >= 300:
-            return []
+            return [], resp.status_code
         data = resp.json().get("data")
         if isinstance(data, dict):
             data = data.get("data") or []
         if not isinstance(data, list):
-            return []
+            return [], resp.status_code
         out = []
         for r in data:
             if isinstance(r, dict):
@@ -123,9 +124,20 @@ def _catalog_sync(f: dict, token: str, path: str) -> list[dict]:
                     "code": r.get("code") if r.get("code") is not None else r.get("id"),
                     "name": r.get("name") or r.get("description") or r.get("unit") or "",
                 })
-        return out
-    except (requests.RequestException, ValueError):
-        return []
+        return out, resp.status_code
+    except (requests.RequestException, ValueError) as exc:
+        return [], str(exc)[:60]
+
+
+def _try_catalogs(f: dict, token: str, candidates: list[str]):
+    """Try candidate endpoint names, return (items, debug)."""
+    debug = []
+    for path in candidates:
+        items, status = _catalog_once(f, token, path)
+        debug.append({"path": path, "status": status, "count": len(items)})
+        if items:
+            return items, debug
+    return [], debug
 
 
 def test_connection_sync(f: dict) -> dict:
@@ -134,14 +146,18 @@ def test_connection_sync(f: dict) -> dict:
     tok, err = _token_detailed(f)
     if not tok:
         return {"ok": False, "error": err or "No se pudo autenticar."}
+    tributes, tdbg = _try_catalogs(f, tok, ["tributes", "tributos", "taxes", "tribute-products"])
+    units, udbg = _try_catalogs(
+        f, tok,
+        ["measurement-units", "units", "unit-measures", "units-measurement", "measure-units", "unit-measurements"],
+    )
     return {
         "ok": True,
         "message": "Autenticación con Factus exitosa.",
         "numbering_ranges": _numbering_ranges_sync(f, tok),
-        "tributes": _catalog_sync(f, tok, "tributes"),
-        "unit_measures": _catalog_sync(f, tok, "measurement-units")
-        or _catalog_sync(f, tok, "units-measurement")
-        or _catalog_sync(f, tok, "units"),
+        "tributes": tributes,
+        "unit_measures": units,
+        "catalog_debug": {"tributes": tdbg, "unit_measures": udbg},
     }
 
 
