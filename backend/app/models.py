@@ -140,6 +140,12 @@ class ProductBase(BaseModel):
     category: str = "general"
     images: List[str] = Field(default_factory=list)
     active: bool = True
+    # Inventory / invoicing
+    cost: int = Field(default=0, ge=0, description="Unit cost (COP) for valuation")
+    tax_rate: int = Field(default=0, ge=0, le=100, description="IVA % for this item")
+    low_stock_threshold: int = Field(default=5, ge=0)
+    sku: str = Field(default="", max_length=60)
+    is_service: bool = False  # services don't track stock
 
     @field_validator("category")
     @classmethod
@@ -159,6 +165,11 @@ class ProductUpdate(BaseModel):
     category: Optional[str] = None
     images: Optional[List[str]] = None
     active: Optional[bool] = None
+    cost: Optional[int] = Field(default=None, ge=0)
+    tax_rate: Optional[int] = Field(default=None, ge=0, le=100)
+    low_stock_threshold: Optional[int] = Field(default=None, ge=0)
+    sku: Optional[str] = Field(default=None, max_length=60)
+    is_service: Optional[bool] = None
 
 
 class Product(ProductBase):
@@ -230,6 +241,45 @@ class OrderItem(BaseModel):
     price: int
     quantity: int
     subtotal: int
+    tax_rate: int = 0  # IVA % copied from the product at order time (for Factus)
+
+
+# --------------------------------------------------------------------------
+# Inventory
+# --------------------------------------------------------------------------
+class MovementType(str, Enum):
+    purchase = "purchase"      # entrada / compra
+    sale = "sale"              # salida por venta
+    adjustment = "adjustment"  # ajuste de conteo físico
+    return_ = "return"         # devolución (entrada)
+
+
+class InventoryMovement(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=_uuid)
+    product_id: str
+    product_name: str = ""
+    type: str  # purchase | sale | adjustment | return
+    change: int  # signed delta applied to stock (+ entrada, - salida)
+    previous_stock: int = 0
+    new_stock: int = 0
+    unit_cost: int = 0
+    reason: str = ""
+    order_id: str = ""
+    created_by: str = ""
+    created_at: datetime = Field(default_factory=_now)
+
+
+class MovementCreate(BaseModel):
+    kind: str  # "in" (entrada) | "out" (salida) | "set" (ajuste a cantidad)
+    quantity: int = Field(ge=0)
+    reason: str = Field(default="", max_length=300)
+    unit_cost: Optional[int] = Field(default=None, ge=0)
+
+
+class TaxByCategory(BaseModel):
+    category: str
+    tax_rate: int = Field(ge=0, le=100)
 
 
 class Order(BaseModel):

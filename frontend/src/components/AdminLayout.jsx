@@ -10,6 +10,7 @@ import {
   Settings,
   Menu,
   FileText,
+  Boxes,
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,7 @@ const GROUPS = [
     items: [
       { to: "/admin/products", label: "Productos", icon: Package },
       { to: "/admin/categories", label: "Categorías", icon: Tag },
+      { to: "/admin/inventory", label: "Inventario", icon: Boxes },
     ],
   },
 ];

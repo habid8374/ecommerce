@@ -36,6 +36,11 @@ const EMPTY = {
   category: "",
   images: "",
   active: true,
+  cost: 0,
+  tax_rate: 0,
+  low_stock_threshold: 5,
+  sku: "",
+  is_service: false,
 };
 
 const NEW_CATEGORY = "__new__";
@@ -70,6 +75,9 @@ export default function AdminProducts() {
         ...payload,
         price: Number(payload.price),
         stock: Number(payload.stock),
+        cost: Number(payload.cost) || 0,
+        tax_rate: Number(payload.tax_rate) || 0,
+        low_stock_threshold: Number(payload.low_stock_threshold) || 0,
         images: payload.images
           .split(",")
           .map((s) => s.trim())
@@ -267,9 +275,35 @@ export default function AdminProducts() {
                 </Select>
               )}
             </div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="space-y-2">
+                <Label htmlFor="cost">Costo (COP)</Label>
+                <Input id="cost" type="number" min="0" value={form.cost} onChange={update("cost")} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tax_rate">IVA %</Label>
+                <Input id="tax_rate" type="number" min="0" max="100" value={form.tax_rate} onChange={update("tax_rate")} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="low_stock_threshold">Stock mínimo</Label>
+                <Input id="low_stock_threshold" type="number" min="0" value={form.low_stock_threshold} onChange={update("low_stock_threshold")} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sku">SKU</Label>
+                <Input id="sku" value={form.sku} onChange={update("sku")} placeholder="Opcional" />
+              </div>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="images">Imágenes (URLs separadas por coma)</Label>
               <Textarea id="images" value={form.images} onChange={update("images")} placeholder="https://..." />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="is_service"
+                checked={form.is_service}
+                onCheckedChange={(is_service) => setForm((f) => ({ ...f, is_service }))}
+              />
+              <Label htmlFor="is_service">Es un servicio (no controla stock)</Label>
             </div>
             <div className="flex items-center gap-2">
               <Switch

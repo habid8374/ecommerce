@@ -123,11 +123,20 @@ async def delete_order(order_id: str, _: UserPublic = Depends(get_current_admin)
     if not order:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Pedido no encontrado")
     if order.get("payment_status") == PaymentStatus.approved.value:
+        from ..services.inventory import apply_movement
+
         for item in order.get("items", []):
-            await db.products.update_one(
-                {"id": item["product_id"]},
-                {"$inc": {"stock": int(item["quantity"])}},
-            )
+            product = await db.products.find_one({"id": item["product_id"]}, PROJECT)
+            qty = int(item["quantity"])
+            if product:
+                await apply_movement(
+                    db, product, qty, "return",
+                    reason=f"Pedido {order_id[:8]} eliminado", order_id=order_id,
+                )
+            else:
+                await db.products.update_one(
+                    {"id": item["product_id"]}, {"$inc": {"stock": qty}}
+                )
     await db.orders.delete_one({"id": order_id})
 
 

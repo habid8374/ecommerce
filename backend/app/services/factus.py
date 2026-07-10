@@ -444,7 +444,7 @@ def _customer(order: dict, f: dict) -> dict:
 
 
 def _items(order: dict, f: dict) -> list[dict]:
-    iva = f"{float(f.get('default_iva', 0)):.2f}"
+    default_iva = float(f.get("default_iva", 0))
     # "70" was rejected as invalid; DIAN "unidad" in Factus v2 is "94".
     unit = str(f.get("unit_measure_code", "") or "94").strip()
     if unit == "70":
@@ -453,6 +453,9 @@ def _items(order: dict, f: dict) -> list[dict]:
     tax_code = str(f.get("tax_code", "01"))
     items = []
     for it in order.get("items", []):
+        # Per-item IVA (from the product), falling back to the global default.
+        rate = it.get("tax_rate")
+        iva = f"{float(rate if rate is not None else default_iva):.2f}"
         items.append({
             "code_reference": (it.get("product_id") or "ITEM")[:20],
             "name": it.get("name", ""),

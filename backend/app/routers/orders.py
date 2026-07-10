@@ -32,11 +32,20 @@ async def mark_order_paid(db, order: dict, transaction_id: Optional[str] = None)
     """Idempotently mark an order paid and decrement stock exactly once."""
     if order.get("payment_status") == PaymentStatus.approved.value:
         return
+    from ..services.inventory import apply_movement
+
     for item in order.get("items", []):
-        await db.products.update_one(
-            {"id": item["product_id"]},
-            {"$inc": {"stock": -int(item["quantity"])}},
-        )
+        product = await db.products.find_one({"id": item["product_id"]}, PROJECT)
+        qty = int(item["quantity"])
+        if product:
+            await apply_movement(
+                db, product, -qty, "sale",
+                reason=f"Venta pedido {order['id'][:8]}", order_id=order["id"],
+            )
+        else:
+            await db.products.update_one(
+                {"id": item["product_id"]}, {"$inc": {"stock": -qty}}
+            )
     await db.orders.update_one(
         {"id": order["id"]},
         {
@@ -127,6 +136,7 @@ async def create_order(body: OrderCreate, user: UserPublic = Depends(get_current
                 price=product["price"],
                 quantity=quantity,
                 subtotal=line_subtotal,
+                tax_rate=int(product.get("tax_rate", 0) or 0),
             )
         )
 
