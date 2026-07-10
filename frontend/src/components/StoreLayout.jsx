@@ -210,10 +210,10 @@ export default function StoreLayout() {
           {/* Powered by Axentia */}
           <div className="mt-8 flex items-center justify-center gap-2 border-t border-white/10 pt-6">
             <span className="text-xs text-white/50">Powered by</span>
-            <span className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1">
-              <AxentiaLogo size={16} />
-              <span className="text-xs font-bold tracking-tight text-[#1e2d3d]">Axentia</span>
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white/95 p-0.5">
+              <AxentiaLogo size={18} />
             </span>
+            <span className="text-sm font-bold tracking-tight text-white">Axentia</span>
             {!isAdmin && (
               <button
                 onClick={() => navigate("/login")}
