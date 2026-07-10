@@ -39,10 +39,21 @@ function Splash({ className = "" }) {
 function Hero() {
   return (
     <section className="relative mb-8 overflow-hidden rounded-2xl border border-white/10 bg-black text-white">
-      {/* Ambient blue glow */}
+      {/* Background video (muted/looping, with a dark overlay for legibility) */}
+      <video
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-60 motion-reduce:hidden"
+        src="/hero.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        aria-hidden="true"
+      />
+      {/* Dark + blue overlay so text/logo stay readable over the video */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-70"
-        style={{ background: "radial-gradient(120% 80% at 50% -10%, rgba(47,107,255,0.28), transparent 60%)" }}
+        className="pointer-events-none absolute inset-0"
+        style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.7)), radial-gradient(120% 80% at 50% -10%, rgba(47,107,255,0.28), transparent 60%)" }}
       />
       {/* Top spotlights */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center gap-16 sm:gap-24">

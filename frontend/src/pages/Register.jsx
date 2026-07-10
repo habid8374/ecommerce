@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { apiError } from "@/lib/api";
-import { LogoMark } from "@/components/Logo";
 import ProfileFields, { EMPTY_PROFILE } from "@/components/ProfileFields";
 import { REGISTER } from "@/constants/testIds";
 import { Button } from "@/components/ui/button";
@@ -45,13 +44,8 @@ export default function Register() {
 
   return (
     <div className="mx-auto max-w-2xl py-10">
-      <div className="mb-6 flex items-center justify-center gap-3">
-        <span className="rounded-xl bg-black p-2">
-          <LogoMark size={30} />
-        </span>
-        <span className="text-2xl font-extrabold tracking-tight">
-          GRAFI<span className="text-primary">BLESS</span>
-        </span>
+      <div className="mb-6 flex justify-center">
+        <img src="/logo_grafibless.jpg" alt="GRAFIBLESS" className="h-16 w-auto rounded-xl" />
       </div>
 
       <Card>
