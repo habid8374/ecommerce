@@ -20,24 +20,52 @@ logger = logging.getLogger(__name__)
 DOC_ID_MAP = {"TI": 2, "CC": 3, "CE": 5, "NIT": 6, "PP": 7}
 
 
+def _token_detailed(f: dict):
+    """Returns (token, error). Tries form-encoded (OAuth2 standard for Passport)
+    then JSON, since Factus deployments have accepted both."""
+    url = f"{f['base_url'].rstrip('/')}/oauth/token"
+    payload = {
+        "grant_type": "password",
+        "client_id": f.get("client_id"),
+        "client_secret": f.get("client_secret"),
+        "username": f.get("email"),
+        "password": f.get("password"),
+    }
+    last_err = "sin respuesta"
+    for kind in ("form", "json"):
+        try:
+            kwargs = {"data": payload} if kind == "form" else {"json": payload}
+            resp = requests.post(url, timeout=20, headers={"Accept": "application/json"}, **kwargs)
+            if resp.status_code < 300:
+                tok = resp.json().get("access_token")
+                if tok:
+                    return tok, None
+            last_err = f"HTTP {resp.status_code}: {resp.text[:200]}"
+        except requests.RequestException as exc:
+            last_err = str(exc)
+    logger.warning("Factus auth failed: %s", last_err)
+    return None, last_err
+
+
 def _token(f: dict) -> str | None:
-    try:
-        resp = requests.post(
-            f"{f['base_url'].rstrip('/')}/oauth/token",
-            json={
-                "grant_type": "password",
-                "client_id": f.get("client_id"),
-                "client_secret": f.get("client_secret"),
-                "username": f.get("email"),
-                "password": f.get("password"),
-            },
-            timeout=20,
-        )
-        resp.raise_for_status()
-        return resp.json().get("access_token")
-    except requests.RequestException as exc:
-        logger.warning("Factus auth failed: %s", getattr(exc.response, "text", exc))
-        return None
+    return _token_detailed(f)[0]
+
+
+def test_connection_sync(f: dict) -> dict:
+    if not (f.get("base_url") and f.get("client_id") and f.get("email")):
+        return {"ok": False, "error": "Faltan credenciales de Factus."}
+    tok, err = _token_detailed(f)
+    if tok:
+        return {"ok": True, "message": "Autenticación con Factus exitosa."}
+    return {"ok": False, "error": err or "No se pudo autenticar."}
+
+
+async def test_connection() -> dict:
+    from .settings_store import get_settings
+    import asyncio
+
+    f = (await get_settings()).get("factus", {})
+    return await asyncio.to_thread(test_connection_sync, f)
 
 
 def _customer(order: dict, f: dict) -> dict:

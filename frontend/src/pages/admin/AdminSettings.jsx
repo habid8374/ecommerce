@@ -29,6 +29,7 @@ function Field({ label, ...props }) {
 export default function AdminSettings() {
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-settings"],
@@ -206,6 +207,29 @@ export default function AdminSettings() {
               <Field label="Unidad de medida (unit_measure_id)" type="number" value={form.factus?.unit_measure_id || 0} onChange={(e) => set("factus.unit_measure_id")(Number(e.target.value))} />
             </div>
           </details>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={testing}
+              onClick={async () => {
+                setTesting(true);
+                try {
+                  await api.put("/admin/settings", (() => { const { _effective, ...p } = form; return p; })());
+                  const { data } = await api.post("/admin/settings/factus/test");
+                  data.ok ? toast.success(data.message || "Conexión exitosa") : toast.error(data.error || "Error de conexión");
+                } catch (err) {
+                  toast.error(apiError(err, "No se pudo probar la conexión"));
+                } finally {
+                  setTesting(false);
+                }
+              }}
+              data-testid="factus-test"
+            >
+              {testing ? "Probando..." : "Probar conexión con Factus"}
+            </Button>
+            <span className="text-xs text-muted-foreground">Guarda y valida las credenciales.</span>
+          </div>
           <p className="text-xs text-muted-foreground">
             Al aprobarse el pago se emite la factura y se envía al correo del cliente.
             El listado y las notas crédito/débito están en el módulo <b>Facturación</b>.

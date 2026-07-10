@@ -43,3 +43,11 @@ async def write_settings(
     updated = await update_settings(patch)
     updated.pop("_id", None)
     return updated
+
+
+@router.post("/factus/test")
+async def test_factus(_: UserPublic = Depends(get_current_admin)):
+    """Validate the saved Factus credentials by authenticating against Factus."""
+    from ..services.factus import test_connection
+
+    return await test_connection()
