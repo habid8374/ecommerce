@@ -10,11 +10,11 @@ const NEON = "#2f6bff";
 
 function Hero() {
   return (
-    <section className="relative mb-8 min-h-[420px] overflow-hidden rounded-2xl border border-white/10 bg-black text-white sm:min-h-[520px] lg:min-h-[600px]">
-      {/* Background video — the hero is essentially the video */}
+    <section className="relative mb-8 aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-black text-white">
+      {/* Background video 16:9 — the section matches the video ratio so it shows
+          in full, edge to edge, with no cropping or black bars. */}
       <video
         className="pointer-events-none absolute inset-0 h-full w-full object-cover motion-reduce:hidden"
-        style={{ objectPosition: "center 78%" }}
         src="/hero.mp4"
         autoPlay
         muted
@@ -22,11 +22,6 @@ function Hero() {
         playsInline
         preload="metadata"
         aria-hidden="true"
-      />
-      {/* Subtle darkening only at the very bottom (for the logo + neon line) */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{ background: "linear-gradient(0deg, rgba(4,8,18,0.55), transparent 32%)" }}
       />
 
       {/* Logo — bottom right corner */}
