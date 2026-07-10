@@ -13,7 +13,7 @@ export default function AxentiaLogo({ size = 20, className = "" }) {
   if (!failed) {
     return (
       <img
-        src="/axentia-logo.png"
+        src="/logo_axentia_A.png"
         alt="Axentia"
         width={size}
         height={size}
