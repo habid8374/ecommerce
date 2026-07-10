@@ -191,7 +191,9 @@ export default function AdminSettings() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="URL base de Factus" value={form.factus?.base_url || ""} onChange={inp("factus.base_url")} placeholder="https://api-sandbox.factus.com.co" />
-            <Field label="Rango de numeración (numbering_range_id)" type="number" value={form.factus?.numbering_range_id || 0} onChange={(e) => set("factus.numbering_range_id")(Number(e.target.value))} />
+            <Field label="Rango numeración FACTURA (ej: 389)" type="number" value={form.factus?.numbering_range_id || 0} onChange={(e) => set("factus.numbering_range_id")(Number(e.target.value))} />
+            <Field label="Rango numeración NOTA CRÉDITO (ej: 390)" type="number" value={form.factus?.numbering_range_id_credit || 0} onChange={(e) => set("factus.numbering_range_id_credit")(Number(e.target.value))} />
+            <Field label="Rango numeración NOTA DÉBITO (ej: 391)" type="number" value={form.factus?.numbering_range_id_debit || 0} onChange={(e) => set("factus.numbering_range_id_debit")(Number(e.target.value))} />
             <Field label="Email (usuario Factus)" value={form.factus?.email || ""} onChange={inp("factus.email")} />
             <Field label="Contraseña" type="password" value={form.factus?.password || ""} onChange={inp("factus.password")} />
             <Field label="Client ID" value={form.factus?.client_id || ""} onChange={inp("factus.client_id")} />

@@ -52,7 +52,9 @@ DEFAULTS = {
         "password": "",
         "client_id": "",
         "client_secret": "",
-        "numbering_range_id": 0,
+        "numbering_range_id": 0,          # Factura de venta (ej: 389 SETP)
+        "numbering_range_id_credit": 0,   # Nota crédito (ej: 390 NC)
+        "numbering_range_id_debit": 0,    # Nota débito (ej: 391 ND)
         "default_iva": 0,  # % IVA applied to items (0 or 19)
         # DIAN catalog values (defaults; adjust to your account).
         "municipality_id": 980,        # Barranquilla

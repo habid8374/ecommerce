@@ -53,7 +53,12 @@ def _token(f: dict) -> str | None:
 
 def _numbering_ranges_sync(f: dict, token: str) -> list[dict]:
     base = f["base_url"].rstrip("/")
-    headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+    }
     for path in ("/v1/numbering-ranges", "/v1/numbering-ranges?filter[is_active]=true"):
         try:
             resp = requests.get(f"{base}{path}", headers=headers, timeout=20)
@@ -153,7 +158,12 @@ def _post(f: dict, token: str, path: str, payload: dict) -> dict:
     try:
         resp = requests.post(
             f"{f['base_url'].rstrip('/')}{path}",
-            headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "X-Requested-With": "XMLHttpRequest",
+            },
             json=payload,
             timeout=30,
         )
@@ -197,8 +207,11 @@ def _note_sync(f: dict, order: dict, kind: str, reason: str, invoice_number: str
     if not token:
         return {"ok": False, "error": "No se pudo autenticar con Factus."}
     path = "/v1/credit-notes/validate" if kind == "credit" else "/v1/debit-notes/validate"
+    # Credit/debit notes use their OWN DIAN numbering range (not the invoice's).
+    range_key = "numbering_range_id_credit" if kind == "credit" else "numbering_range_id_debit"
+    note_range = int(f.get(range_key) or f.get("numbering_range_id", 0))
     payload = {
-        "numbering_range_id": int(f.get("numbering_range_id", 0)),
+        "numbering_range_id": note_range,
         "reference_code": f"{order['id'][:16]}-{kind[:2]}",
         "bill_number": invoice_number,
         "correction_concept_code": "2",  # 2=Anulación/Ajuste (adjust per DIAN)
