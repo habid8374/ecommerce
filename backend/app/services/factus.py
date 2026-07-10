@@ -177,12 +177,16 @@ def _customer(order: dict, f: dict) -> dict:
         "identification": order.get("doc_number") or "222222222222",
         "identification_document_code": DOC_CODE_MAP.get(doc_type, "13"),
         "legal_organization_code": "1" if is_company else "2",
-        "tribute_code": str(f.get("customer_tribute_code", "21")),
         "municipality_code": str(f.get("municipality_code", "08001")),
         "email": order.get("customer_email", ""),
         "address": addr.get("address", ""),
         "phone": addr.get("phone", ""),
     }
+    # tribute_code is optional; only send it when set to a real value ("21" was
+    # rejected as invalid by Factus v2, so omit it — DIAN accepts no tribute).
+    tc = str(f.get("customer_tribute_code", "")).strip()
+    if tc and tc != "21":
+        cust["tribute_code"] = tc
     if is_company:
         cust["company"] = order.get("customer_name", "")
     else:
@@ -192,7 +196,10 @@ def _customer(order: dict, f: dict) -> dict:
 
 def _items(order: dict, f: dict) -> list[dict]:
     iva = f"{float(f.get('default_iva', 0)):.2f}"
-    unit = str(f.get("unit_measure_code", "70"))
+    # "70" was rejected as invalid; DIAN "unidad" in Factus v2 is "94".
+    unit = str(f.get("unit_measure_code", "") or "94").strip()
+    if unit == "70":
+        unit = "94"
     std = str(f.get("standard_code", "999"))
     tax_code = str(f.get("tax_code", "01"))
     items = []
