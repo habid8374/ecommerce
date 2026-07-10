@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { FileText, ExternalLink, FileMinus, FilePlus, Code, Printer, RefreshCw } from "lucide-react";
+import { FileText, ExternalLink, FileMinus, FilePlus, Code, Printer, RefreshCw, Trash2 } from "lucide-react";
 import { api, apiError } from "@/lib/api";
+import { useConfirm } from "@/context/ConfirmContext";
 import { formatCOP, formatDate } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ const TYPE_LABEL = {
 
 export default function AdminInvoices() {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [note, setNote] = useState(null); // { invoice, kind, reason }
   const [detail, setDetail] = useState(null); // invoice record to inspect
 
@@ -64,6 +66,51 @@ export default function AdminInvoices() {
     onError: (err) => toast.error(apiError(err, "No se pudo sincronizar con Factus")),
   });
 
+  const removeOne = useMutation({
+    mutationFn: (id) => api.delete(`/admin/invoices/${id}`),
+    onSuccess: () => {
+      toast.success("Documento eliminado del sistema");
+      setDetail(null);
+      qc.invalidateQueries({ queryKey: ["admin-invoices"] });
+    },
+    onError: (err) => toast.error(apiError(err, "No se pudo eliminar")),
+  });
+
+  const removeImported = useMutation({
+    mutationFn: () => api.delete("/admin/invoices/imported"),
+    onSuccess: (res) => {
+      toast.success(`${res.data.deleted ?? 0} factura(s) importada(s) eliminada(s)`);
+      qc.invalidateQueries({ queryKey: ["admin-invoices"] });
+    },
+    onError: (err) => toast.error(apiError(err, "No se pudieron eliminar")),
+  });
+
+  const hasImported = invoices.some((i) => i.imported);
+
+  const askRemoveOne = async (inv) => {
+    if (
+      await confirm({
+        title: "Eliminar documento",
+        description: `¿Eliminar ${inv.number || "este documento"} del sistema? No afecta el documento en la DIAN, solo se quita de este listado.`,
+        confirmText: "Eliminar",
+        destructive: true,
+      })
+    )
+      removeOne.mutate(inv.id);
+  };
+
+  const askRemoveImported = async () => {
+    if (
+      await confirm({
+        title: "Eliminar facturas importadas",
+        description: "Se quitarán del sistema todas las facturas traídas con 'Sincronizar con Factus' (las que no emitiste tú). No afecta la DIAN.",
+        confirmText: "Eliminar importadas",
+        destructive: true,
+      })
+    )
+      removeImported.mutate();
+  };
+
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-2">
@@ -71,10 +118,18 @@ export default function AdminInvoices() {
           <FileText className="h-6 w-6" />
           <h1 className="text-2xl font-bold">Facturación electrónica</h1>
         </div>
-        <Button variant="outline" size="sm" onClick={() => sync.mutate()} disabled={sync.isPending} data-testid="sync-factus">
-          <RefreshCw className={`mr-2 h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`} />
-          {sync.isPending ? "Sincronizando..." : "Sincronizar con Factus"}
-        </Button>
+        <div className="flex items-center gap-2">
+          {hasImported && (
+            <Button variant="outline" size="sm" onClick={askRemoveImported} disabled={removeImported.isPending} className="text-destructive hover:text-destructive" data-testid="delete-imported">
+              <Trash2 className="mr-2 h-4 w-4" />
+              {removeImported.isPending ? "Eliminando..." : "Eliminar importadas"}
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => sync.mutate()} disabled={sync.isPending} data-testid="sync-factus">
+            <RefreshCw className={`mr-2 h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`} />
+            {sync.isPending ? "Sincronizando..." : "Sincronizar con Factus"}
+          </Button>
+        </div>
       </div>
       <p className="mb-6 text-sm text-muted-foreground">
         Facturas emitidas y notas crédito/débito. La emisión se configura en Ajustes → Facturación electrónica.
@@ -151,7 +206,7 @@ export default function AdminInvoices() {
                               </a>
                             </Button>
                           )}
-                          {inv.type === "invoice" && inv.status === "emitida" && (
+                          {inv.type === "invoice" && inv.status === "emitida" && !inv.imported && (
                             <>
                               <Button variant="ghost" size="sm" onClick={() => setNote({ invoice: inv, kind: "credit", reason: "" })} title="Nota crédito">
                                 <FileMinus className="mr-1 h-4 w-4" /> Crédito
@@ -161,6 +216,9 @@ export default function AdminInvoices() {
                               </Button>
                             </>
                           )}
+                          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" title="Eliminar del sistema" onClick={() => askRemoveOne(inv)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </td>
                     </tr>

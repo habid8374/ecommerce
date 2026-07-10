@@ -37,6 +37,25 @@ async def sync_invoices(_: UserPublic = Depends(get_current_admin)):
     return result
 
 
+@router.delete("/imported")
+async def delete_imported(_: UserPublic = Depends(get_current_admin)):
+    """Remove all invoices brought in via Sync (the shared Factus sandbox
+    account returns bills that aren't the merchant's own)."""
+    db = get_db()
+    res = await db.invoices.delete_many({"imported": True})
+    return {"deleted": res.deleted_count}
+
+
+@router.delete("/{invoice_id}")
+async def delete_invoice(invoice_id: str, _: UserPublic = Depends(get_current_admin)):
+    """Delete a single invoice record (does not affect the document in DIAN)."""
+    db = get_db()
+    res = await db.invoices.delete_one({"id": invoice_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Documento no encontrado")
+    return {"deleted": res.deleted_count}
+
+
 @router.get("/{invoice_id}")
 async def get_invoice(invoice_id: str, _: UserPublic = Depends(get_current_admin)):
     """One invoice + its order (for the printable graphical representation)."""
