@@ -51,13 +51,43 @@ def _token(f: dict) -> str | None:
     return _token_detailed(f)[0]
 
 
+def _numbering_ranges_sync(f: dict, token: str) -> list[dict]:
+    try:
+        resp = requests.get(
+            f"{f['base_url'].rstrip('/')}/v1/numbering-ranges",
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+            timeout=20,
+        )
+        if resp.status_code >= 300:
+            return []
+        data = resp.json().get("data") or []
+        out = []
+        for r in data:
+            out.append({
+                "id": r.get("id"),
+                "document": r.get("document") or r.get("document_type") or "",
+                "prefix": r.get("prefix", ""),
+                "from": r.get("from"),
+                "to": r.get("to"),
+                "resolution_number": r.get("resolution_number", ""),
+            })
+        return out
+    except requests.RequestException:
+        return []
+
+
 def test_connection_sync(f: dict) -> dict:
     if not (f.get("base_url") and f.get("client_id") and f.get("email")):
         return {"ok": False, "error": "Faltan credenciales de Factus."}
     tok, err = _token_detailed(f)
-    if tok:
-        return {"ok": True, "message": "Autenticación con Factus exitosa."}
-    return {"ok": False, "error": err or "No se pudo autenticar."}
+    if not tok:
+        return {"ok": False, "error": err or "No se pudo autenticar."}
+    ranges = _numbering_ranges_sync(f, tok)
+    return {
+        "ok": True,
+        "message": "Autenticación con Factus exitosa.",
+        "numbering_ranges": ranges,
+    }
 
 
 async def test_connection() -> dict:

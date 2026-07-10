@@ -30,6 +30,7 @@ export default function AdminSettings() {
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [factusRanges, setFactusRanges] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-settings"],
@@ -217,7 +218,13 @@ export default function AdminSettings() {
                 try {
                   await api.put("/admin/settings", (() => { const { _effective, ...p } = form; return p; })());
                   const { data } = await api.post("/admin/settings/factus/test");
-                  data.ok ? toast.success(data.message || "Conexión exitosa") : toast.error(data.error || "Error de conexión");
+                  if (data.ok) {
+                    toast.success(data.message || "Conexión exitosa");
+                    setFactusRanges(data.numbering_ranges || []);
+                  } else {
+                    toast.error(data.error || "Error de conexión");
+                    setFactusRanges(null);
+                  }
                 } catch (err) {
                   toast.error(apiError(err, "No se pudo probar la conexión"));
                 } finally {
@@ -230,6 +237,38 @@ export default function AdminSettings() {
             </Button>
             <span className="text-xs text-muted-foreground">Guarda y valida las credenciales.</span>
           </div>
+
+          {factusRanges && (
+            <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+              <p className="mb-2 font-medium">Rangos de numeración disponibles</p>
+              {factusRanges.length === 0 ? (
+                <p className="text-muted-foreground">
+                  No se encontraron rangos. Créalos en tu panel de Factus.
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {factusRanges.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => {
+                        set("factus.numbering_range_id")(r.id);
+                        toast.success(`Rango ${r.id} seleccionado`);
+                      }}
+                      className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left hover:bg-accent"
+                    >
+                      <span>
+                        <b>ID {r.id}</b> · {r.document} {r.prefix ? `(${r.prefix})` : ""}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {form.factus?.numbering_range_id === r.id ? "✓ seleccionado" : "usar"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             Al aprobarse el pago se emite la factura y se envía al correo del cliente.
             El listado y las notas crédito/débito están en el módulo <b>Facturación</b>.
