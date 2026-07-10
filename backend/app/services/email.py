@@ -129,6 +129,25 @@ async def send_invoice(order: dict, public_url: str, number: str) -> None:
     await send_email(order.get("customer_email"), order.get("customer_name"), f"Factura electrónica · Pedido #{ref}", html)
 
 
+async def send_low_stock_alert(product: dict, new_stock: int, threshold: int) -> None:
+    """Notify the store (admin/company email) when a product runs low or out."""
+    settings = await get_settings()
+    company = settings.get("company", {})
+    to = company.get("email") or settings.get("brevo", {}).get("sender_email")
+    if not to:
+        return
+    name = company.get("name", "GRAFIBLESS")
+    out = new_stock <= 0
+    title = "Producto AGOTADO" if out else "Stock bajo"
+    body = f"""
+      <p>El producto <b>{product.get('name', '')}</b> {'se agotó' if out else 'está en stock bajo'}.</p>
+      <p>Stock actual: <b>{new_stock}</b> — Mínimo configurado: <b>{threshold}</b></p>
+      <p>Te recomendamos reponer inventario.</p>
+    """
+    html = _layout(name, title, body)
+    await send_email(to, name, f"⚠️ {title}: {product.get('name', '')}", html)
+
+
 async def send_status_changed(order: dict, new_status: str) -> None:
     settings = await get_settings()
     company = settings.get("company", {}).get("name", "GRAFIBLESS")

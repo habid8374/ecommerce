@@ -9,6 +9,8 @@ import {
   AlertTriangle,
   TrendingUp,
   Receipt,
+  Boxes,
+  History,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -26,6 +28,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const BLUE = "#1e5eff";
 const PALETTE = ["#1e5eff", "#4f7cff", "#8aa8ff", "#0f2f99", "#2e6bff", "#6b8cff"];
+
+const MOVE_LABEL = {
+  purchase: { label: "Entrada", className: "text-emerald-600" },
+  sale: { label: "Venta", className: "text-blue-600" },
+  adjustment: { label: "Ajuste", className: "text-amber-600" },
+  return: { label: "Devolución", className: "text-violet-600" },
+};
 
 const shortCOP = (v) => {
   const n = Number(v || 0);
@@ -78,6 +87,16 @@ export default function Dashboard() {
     queryFn: async () => (await api.get("/admin/analytics?days=30")).data,
     refetchInterval: 30000,
   });
+  const { data: inventory } = useQuery({
+    queryKey: ["admin-inventory-dash"],
+    queryFn: async () => (await api.get("/admin/inventory")).data,
+    refetchInterval: 30000,
+  });
+  const { data: movements = [] } = useQuery({
+    queryKey: ["admin-movements-dash"],
+    queryFn: async () => (await api.get("/admin/inventory/movements?limit=8")).data,
+    refetchInterval: 30000,
+  });
 
   if (isLoading || !stats) {
     return (
@@ -92,6 +111,11 @@ export default function Dashboard() {
   const sales = (analytics?.sales_series || []).map((s) => ({ ...s, label: s.date.slice(5) }));
   const top = (analytics?.top_products || []).slice(0, 6);
   const low = (analytics?.low_rotation || []).slice(0, 6);
+  const invSummary = inventory?.summary || {};
+  const lowStock = (inventory?.items || [])
+    .filter((r) => !r.is_service && r.low)
+    .sort((a, b) => a.stock - b.stock)
+    .slice(0, 6);
 
   return (
     <div className="space-y-5">
@@ -171,6 +195,60 @@ export default function Dashboard() {
                 </span>
               </div>
             ))}
+          </div>
+        </ChartCard>
+      </div>
+
+      {/* Inventory + kardex */}
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        <ChartCard
+          title="Inventario · stock bajo"
+          icon={Boxes}
+          empty={lowStock.length === 0}
+          emptyText="Todo el stock está en buen nivel."
+        >
+          <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Valor inventario: <b className="text-foreground">{formatCOP(invSummary.cost_value || 0)}</b></span>
+            <Link to="/admin/inventory" className="text-primary hover:underline">Ver todo</Link>
+          </div>
+          <div className="divide-y">
+            {lowStock.map((r) => (
+              <Link key={r.id} to="/admin/inventory" className="flex items-center justify-between gap-2 py-2 text-sm hover:bg-accent/40">
+                <span className="min-w-0 flex-1 truncate">{r.name}</span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className={r.out ? "font-medium text-red-600" : "text-amber-600"}>
+                    {r.out ? "Agotado" : `stock ${r.stock}`}
+                  </span>
+                  <span className="text-xs text-muted-foreground">mín {r.low_stock_threshold}</span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </ChartCard>
+
+        <ChartCard
+          title="Movimientos recientes"
+          icon={History}
+          empty={movements.length === 0}
+          emptyText="Sin movimientos de inventario."
+        >
+          <div className="divide-y">
+            {movements.map((m) => {
+              const t = MOVE_LABEL[m.type] || { label: m.type, className: "" };
+              return (
+                <div key={m.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                  <div className="min-w-0">
+                    <p className="truncate">{m.product_name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      <span className={t.className}>{t.label}</span> · {formatDate(m.created_at)}
+                    </p>
+                  </div>
+                  <span className={`shrink-0 font-mono ${m.change >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                    {m.change >= 0 ? "+" : ""}{m.change}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </ChartCard>
       </div>

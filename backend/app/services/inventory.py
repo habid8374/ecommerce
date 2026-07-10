@@ -43,4 +43,19 @@ async def apply_movement(
         created_by=created_by,
     )
     await db.inventory_movements.insert_one(mv.model_dump())
+
+    # Low-stock / out-of-stock alert (best-effort, only when crossing over).
+    if not product.get("is_service") and change < 0:
+        threshold = int(product.get("low_stock_threshold", 5) or 0)
+        crossed_low = new <= threshold and prev > threshold
+        went_out = new <= 0 and prev > 0
+        if crossed_low or went_out:
+            try:
+                from .email import send_low_stock_alert
+
+                await send_low_stock_alert(product, new, threshold)
+            except Exception as exc:  # noqa: BLE001
+                import logging
+
+                logging.getLogger(__name__).warning("low-stock alert failed: %s", exc)
     return mv
