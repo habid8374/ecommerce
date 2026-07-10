@@ -69,8 +69,16 @@ DEFAULTS = {
     "shipping": {
         # Free national (carrier) shipping over this subtotal (0 disables it).
         "free_over": config.FREE_SHIPPING_OVER,
-        # Cost of national shipping by carrier (0 = "por cobrar / contraentrega").
+        # Fallback national carrier cost when the customer's city has no
+        # specific rate below (0 = "por cobrar / contraentrega").
         "carrier_cost": 0,
+        # Allow the customer to pay the transport on delivery (contraentrega):
+        # it isn't charged through Wompi, only collected when the order arrives.
+        "carrier_cod": True,
+        # Per-city carrier rates — shipping isn't the same for every city, so
+        # the price is looked up by the customer's city (falls back to
+        # carrier_cost). Parametrizable in Ajustes → Envíos.
+        "carrier_zones": [],  # [{"name": "Bogotá", "price": 18000}, ...]
         # Local delivery zones (Barranquilla metro area) with their price.
         "local_zones": [
             {"name": "Barranquilla", "price": 8000},

@@ -50,6 +50,7 @@ export default function Checkout() {
   const [paying, setPaying] = useState(false);
   const [method, setMethod] = useState("carrier");
   const [zone, setZone] = useState("");
+  const [cod, setCod] = useState(false);
 
   const { data: pub } = useQuery({
     queryKey: ["public-settings"],
@@ -58,12 +59,30 @@ export default function Checkout() {
   const ship = pub?.shipping || {};
   const zones = ship.local_zones || [];
 
+  const norm = (s) =>
+    (s || "")
+      .toString()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
+  // Carrier rate by the customer's city (falls back to the flat cost).
+  const carrierMatch = (ship.carrier_zones || []).find((z) => norm(z.name) === norm(user?.city));
+  const carrierBase = carrierMatch ? carrierMatch.price : ship.carrier_cost || 0;
+  const carrierFree = (ship.free_over || 0) && subtotal >= (ship.free_over || 0);
+  const codAllowed = method === "carrier" && ship.carrier_cod && !carrierFree && carrierBase > 0;
+
   let shippingCost = 0;
   if (method === "local") {
     shippingCost = zones.find((z) => z.name === zone)?.price ?? 0;
+  } else if (carrierFree) {
+    shippingCost = 0;
+  } else if (cod && ship.carrier_cod) {
+    shippingCost = 0; // paid on delivery (contraentrega)
   } else {
-    const freeOver = ship.free_over || 0;
-    shippingCost = freeOver && subtotal >= freeOver ? 0 : ship.carrier_cost || 0;
+    shippingCost = carrierBase;
   }
   const total = subtotal + shippingCost;
   const canPay = !editing && (method === "carrier" || (method === "local" && zone));
@@ -93,6 +112,7 @@ export default function Checkout() {
         items: items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
         shipping_method: method,
         shipping_zone: method === "local" ? zone : "",
+        shipping_cod: method === "carrier" ? cod : false,
       });
       const { data: intent } = await api.post(`/payments/orders/${order.id}/intent`);
 
@@ -233,9 +253,27 @@ export default function Checkout() {
                   </div>
                 )}
                 {method === "carrier" && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Envío nacional por transportadora. Te compartiremos la guía cuando despachemos.
-                  </p>
+                  <div className="mt-2 space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      Envío nacional por transportadora
+                      {user?.city ? ` a ${user.city}` : ""}. Te compartiremos la guía cuando despachemos.
+                    </p>
+                    {codAllowed && (
+                      <label className="flex cursor-pointer items-start gap-2 rounded-lg border p-2 text-xs">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5"
+                          checked={cod}
+                          onChange={(e) => setCod(e.target.checked)}
+                          data-testid="ship-cod"
+                        />
+                        <span>
+                          <span className="font-medium">Pagar el transporte contraentrega</span> — pagas{" "}
+                          {formatCOP(carrierBase)} del envío al recibir el producto (no se cobra ahora).
+                        </span>
+                      </label>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -246,7 +284,15 @@ export default function Checkout() {
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Envío</span>
-                  <span>{shippingCost === 0 ? (method === "carrier" ? "Por cobrar / gratis" : "Gratis") : formatCOP(shippingCost)}</span>
+                  <span>
+                    {method === "carrier" && cod && carrierBase > 0
+                      ? `Contraentrega (${formatCOP(carrierBase)})`
+                      : shippingCost === 0
+                      ? method === "carrier"
+                        ? "Por cobrar / gratis"
+                        : "Gratis"
+                      : formatCOP(shippingCost)}
+                  </span>
                 </div>
                 <div className="mt-1 flex justify-between text-base font-bold">
                   <span>Total</span>

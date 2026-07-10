@@ -119,7 +119,13 @@ export default function OrderConfirmation() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Envío</span>
-              <span>{order.shipping_cost === 0 ? "Gratis" : formatCOP(order.shipping_cost)}</span>
+              <span>
+                {order.shipping_cod && order.shipping_due > 0
+                  ? `Contraentrega (${formatCOP(order.shipping_due)})`
+                  : order.shipping_cost === 0
+                  ? "Gratis"
+                  : formatCOP(order.shipping_cost)}
+              </span>
             </div>
             <div className="mt-1 flex justify-between font-bold">
               <span>Total</span>

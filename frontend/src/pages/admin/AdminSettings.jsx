@@ -332,9 +332,82 @@ export default function AdminSettings() {
           <div>
             <p className="mb-3 text-sm font-semibold">Transportadora (nacional)</p>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Costo transportadora (COP) — 0 = por cobrar" type="number" value={form.shipping.carrier_cost} onChange={(e) => set("shipping.carrier_cost")(Number(e.target.value))} />
+              <Field label="Costo transportadora por defecto (COP) — 0 = por cobrar" type="number" value={form.shipping.carrier_cost} onChange={(e) => set("shipping.carrier_cost")(Number(e.target.value))} />
               <Field label="Envío gratis desde (COP)" type="number" value={form.shipping.free_over} onChange={(e) => set("shipping.free_over")(Number(e.target.value))} />
             </div>
+            <div className="mt-3 flex items-center gap-2">
+              <Switch checked={form.shipping.carrier_cod ?? true} onCheckedChange={set("shipping.carrier_cod")} />
+              <Label>Permitir pago del transporte contraentrega (el cliente paga el envío al recibir)</Label>
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm font-semibold">Tarifas de transportadora por ciudad</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setForm((f) => {
+                    const next = structuredClone(f);
+                    next.shipping.carrier_zones = [...(next.shipping.carrier_zones || []), { name: "", price: 0 }];
+                    return next;
+                  })
+                }
+              >
+                <Plus className="mr-2 h-4 w-4" /> Agregar ciudad
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {(form.shipping.carrier_zones || []).map((z, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Input
+                    className="flex-1"
+                    placeholder="Ciudad (ej: Bogotá, Medellín)"
+                    value={z.name}
+                    onChange={(e) =>
+                      setForm((f) => {
+                        const next = structuredClone(f);
+                        next.shipping.carrier_zones[i].name = e.target.value;
+                        return next;
+                      })
+                    }
+                  />
+                  <Input
+                    className="w-36"
+                    type="number"
+                    placeholder="Valor"
+                    value={z.price}
+                    onChange={(e) =>
+                      setForm((f) => {
+                        const next = structuredClone(f);
+                        next.shipping.carrier_zones[i].price = Number(e.target.value);
+                        return next;
+                      })
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() =>
+                      setForm((f) => {
+                        const next = structuredClone(f);
+                        next.shipping.carrier_zones.splice(i, 1);
+                        return next;
+                      })
+                    }
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              El valor del envío nacional se toma según la ciudad del cliente. Si su ciudad no está aquí, se usa el costo por defecto.
+            </p>
           </div>
 
           <div>

@@ -215,6 +215,8 @@ class OrderCreate(BaseModel):
     items: List[CartItemIn] = Field(min_length=1)
     shipping_method: ShippingMethod = ShippingMethod.carrier
     shipping_zone: str = ""  # required when shipping_method == local
+    # Carrier only: pay the shipping on delivery (contraentrega) instead of now.
+    shipping_cod: bool = False
 
 
 class OrderShippingUpdate(BaseModel):
@@ -244,6 +246,9 @@ class Order(BaseModel):
     subtotal: int = 0
     shipping_cost: int = 0
     total: int = 0
+    # Carrier "contraentrega": shipping not charged now; collected on delivery.
+    shipping_cod: bool = False
+    shipping_due: int = 0  # amount to collect on delivery when shipping_cod
     # Shipping method + fulfillment tracking.
     shipping_method: ShippingMethod = ShippingMethod.carrier
     shipping_zone: str = ""

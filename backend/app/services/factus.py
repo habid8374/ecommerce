@@ -215,15 +215,42 @@ def _items(order: dict, f: dict) -> list[dict]:
             "standard_code": std,
             "taxes": [{"code": tax_code, "rate": iva}],
         })
+    # Shipping charged now must appear as a line so the invoice total matches
+    # what the customer paid (Factus rejects a payment sum ≠ item sum). When
+    # shipping is paid on delivery (contraentrega) shipping_cost is 0, so it's
+    # correctly excluded from the invoice.
+    shipping_cost = int(order.get("shipping_cost", 0) or 0)
+    if shipping_cost > 0:
+        items.append({
+            "code_reference": "ENVIO",
+            "name": "Envío / Transporte",
+            "quantity": 1,
+            "discount_rate": 0,
+            "price": shipping_cost,
+            "unit_measure_code": unit,
+            "standard_code": std,
+            "taxes": [{"code": tax_code, "rate": iva}],
+        })
     return items
 
 
-def _payment_details(order: dict, f: dict) -> list[dict]:
+def _items_total(items: list[dict], f: dict) -> float:
+    """Total Factus will compute from the items (base + IVA). Used so
+    payment_details always equals the item sum."""
+    iva_rate = float(f.get("default_iva", 0))
+    total = 0.0
+    for it in items:
+        base = it["price"] * it["quantity"] * (1 - it.get("discount_rate", 0) / 100)
+        total += base * (1 + iva_rate / 100)
+    return total
+
+
+def _payment_details(order: dict, f: dict, items: list[dict]) -> list[dict]:
     from datetime import date
     return [{
         "payment_form": str(f.get("payment_form", "1")),
         "payment_method_code": str(f.get("payment_method_code", "10")),
-        "amount": f"{int(order.get('total', 0)):.2f}",
+        "amount": f"{_items_total(items, f):.2f}",
         "due_date": date.today().isoformat(),
     }]
 
@@ -273,13 +300,14 @@ def _emit_sync(f: dict, order: dict) -> dict:
     # reference with 409 ("factura pendiente por enviar a la DIAN"). Append a
     # short timestamp so each attempt is a brand-new document.
     ref = f"{order['id'][:12]}-{int(time.time())}"
+    items = _items(order, f)
     payload = {
         "numbering_range_id": int(f.get("numbering_range_id", 0)),
         "reference_code": ref,
         "observation": "",
-        "payment_details": _payment_details(order, f),
+        "payment_details": _payment_details(order, f, items),
         "customer": _customer(order, f),
-        "items": _items(order, f),
+        "items": items,
     }
     result = _post(f, token, f"/{_v(f)}/bills/validate", payload)
     result["sent"] = payload
@@ -296,15 +324,16 @@ def _note_sync(f: dict, order: dict, kind: str, reason: str, invoice_number: str
     range_key = "numbering_range_id_credit" if kind == "credit" else "numbering_range_id_debit"
     note_range = int(f.get(range_key) or f.get("numbering_range_id", 0))
     ref = f"{order['id'][:10]}-{kind[:2]}-{int(time.time())}"
+    items = _items(order, f)
     payload = {
         "numbering_range_id": note_range,
         "reference_code": ref,
         "bill_number": invoice_number,
         "correction_concept_code": "2",  # 2=Anulación/Ajuste (adjust per DIAN)
         "observation": reason or "",
-        "payment_details": _payment_details(order, f),
+        "payment_details": _payment_details(order, f, items),
         "customer": _customer(order, f),
-        "items": _items(order, f),
+        "items": items,
     }
     result = _post(f, token, path, payload)
     result["sent"] = payload

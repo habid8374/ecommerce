@@ -225,6 +225,11 @@ export default function AdminOrders() {
                       ? `Domicilio local — ${selected.shipping_zone || "—"}`
                       : "Transportadora (nacional)"}
                   </p>
+                  {selected.shipping_cod && selected.shipping_due > 0 && (
+                    <p className="rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">
+                      Transporte contraentrega — cobrar {formatCOP(selected.shipping_due)} al entregar
+                    </p>
+                  )}
                   {selected.shipping_method !== "local" && (
                     <div className="space-y-2">
                       <Input

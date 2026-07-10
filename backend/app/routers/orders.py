@@ -137,6 +137,8 @@ async def create_order(body: OrderCreate, user: UserPublic = Depends(get_current
     free_over = ship.get("free_over", config.FREE_SHIPPING_OVER)
     method = body.shipping_method
     zone = ""
+    shipping_cod = False
+    shipping_due = 0
     if method.value == "local":
         zones = {z["name"]: int(z["price"]) for z in ship.get("local_zones", [])}
         if body.shipping_zone not in zones:
@@ -145,9 +147,24 @@ async def create_order(body: OrderCreate, user: UserPublic = Depends(get_current
             )
         zone = body.shipping_zone
         shipping_cost = zones[zone]
-    else:  # carrier (nacional)
-        carrier_cost = int(ship.get("carrier_cost", 0))
-        shipping_cost = 0 if (subtotal <= 0 or (free_over and subtotal >= free_over)) else carrier_cost
+    else:  # carrier (nacional) — rate by customer city, with COD option
+        from ..models import slugify
+
+        czones = {
+            slugify(z["name"]): int(z["price"])
+            for z in ship.get("carrier_zones", [])
+            if z.get("name")
+        }
+        base_cost = czones.get(slugify(user.city or ""), int(ship.get("carrier_cost", 0)))
+        if subtotal <= 0 or (free_over and subtotal >= free_over):
+            shipping_cost = 0  # free shipping threshold reached
+        elif body.shipping_cod and ship.get("carrier_cod", False):
+            # Pay transport on delivery: not charged through Wompi now.
+            shipping_cost = 0
+            shipping_cod = True
+            shipping_due = base_cost
+        else:
+            shipping_cost = base_cost
 
     order = Order(
         user_id=user.id,
@@ -159,6 +176,8 @@ async def create_order(body: OrderCreate, user: UserPublic = Depends(get_current
         subtotal=subtotal,
         shipping_cost=shipping_cost,
         total=subtotal + shipping_cost,
+        shipping_cod=shipping_cod,
+        shipping_due=shipping_due,
         shipping_method=method,
         shipping_zone=zone,
         shipping_address=shipping,
