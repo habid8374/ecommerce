@@ -526,15 +526,16 @@ def _post(f: dict, token: str, path: str, payload: dict) -> dict:
             return {"ok": False, "error": msg, "status_code": resp.status_code, "raw": data}
         outer = data.get("data") or {}
         bill = outer.get("bill") or outer
-        # QR / CUFE / public URL may live on the bill OR at the `data` level.
+        # QR / CUFE / public URL live at data level, often under `links`.
+        links = outer.get("links") or bill.get("links") or {}
         return {
             "ok": True,
             "number": bill.get("number") or bill.get("name"),
             "cufe": bill.get("cufe") or bill.get("cude") or outer.get("cufe"),
-            "qr": bill.get("qr") or bill.get("qr_image") or bill.get("qr_code")
-            or outer.get("qr") or outer.get("qr_image"),
-            "public_url": bill.get("public_url") or bill.get("url")
-            or outer.get("public_url") or outer.get("url") or bill.get("qr_image"),
+            "qr": links.get("qr") or bill.get("qr") or bill.get("qr_image")
+            or bill.get("qr_code") or outer.get("qr") or outer.get("qr_image"),
+            "public_url": links.get("public_url") or bill.get("public_url")
+            or bill.get("url") or outer.get("public_url") or outer.get("url"),
             "status": bill.get("status", "emitida"),
             "raw": data,
         }

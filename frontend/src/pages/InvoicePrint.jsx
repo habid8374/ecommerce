@@ -49,12 +49,15 @@ export default function InvoicePrint() {
   const shippingCost = order.shipping_cost ?? 0;
 
   const dataLevel = fd?.data || {};
+  const links = dataLevel.links || bill.links || {};
+  const range = dataLevel.numbering_range || {};
   const number = inv.number || bill.number || "";
   const cufe = inv.cufe || bill.cufe || bill.cude || dataLevel.cufe || "";
-  // Factus returns the QR at the `data` level (image as base64, or a URL to
-  // encode). Prefer a ready image; otherwise turn the QR content into an image.
+  const publicUrl = inv.public_url || links.public_url || "";
+  // Factus returns the QR at data.links.qr (a DIAN URL to encode) or as a
+  // base64 image. Prefer a ready image; otherwise turn the URL into a QR image.
   const qrImage = bill.qr_image || dataLevel.qr_image || (inv.qr?.startsWith?.("data:") ? inv.qr : "");
-  const qrContent = bill.qr || dataLevel.qr || inv.qr || inv.public_url || "";
+  const qrContent = links.qr || bill.qr || dataLevel.qr || inv.qr || publicUrl || "";
   const qrImg = qrImage
     ? qrImage
     : qrContent
@@ -151,8 +154,8 @@ export default function InvoicePrint() {
               <p className="font-semibold uppercase text-muted-foreground">CUFE</p>
               <p className="break-all font-mono text-[10px] leading-relaxed">{cufe || "—"}</p>
               {inv.reason && <p className="mt-2"><b>Motivo:</b> {inv.reason}</p>}
-              {inv.public_url && (
-                <a href={inv.public_url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-primary underline">
+              {publicUrl && (
+                <a href={publicUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-primary underline">
                   Validar en DIAN
                 </a>
               )}
@@ -165,9 +168,19 @@ export default function InvoicePrint() {
           </div>
         </div>
 
-        <p className="mt-8 border-t pt-3 text-center text-[10px] text-muted-foreground">
-          Representación gráfica de la {TYPE_TITLE[inv.type] || "documento"}. Generada por GRAFIBLESS · Proveedor tecnológico: Factus.
-        </p>
+        <div className="mt-8 border-t pt-3 text-center text-[10px] text-muted-foreground">
+          {range.resolution_number && (
+            <p>
+              Resolución DIAN No. {range.resolution_number}
+              {range.start_date ? ` de ${range.start_date}` : ""} · Prefijo {range.prefix} del{" "}
+              {range.from} al {range.to}
+              {range.end_date ? ` · Vigencia hasta ${range.end_date}` : ""}
+            </p>
+          )}
+          <p className="mt-1">
+            Representación gráfica de la {TYPE_TITLE[inv.type] || "documento"}. Generada por GRAFIBLESS · Proveedor tecnológico: Factus.
+          </p>
+        </div>
       </div>
     </div>
   );
