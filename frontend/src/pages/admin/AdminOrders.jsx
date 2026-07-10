@@ -99,7 +99,11 @@ export default function AdminOrders() {
   const emitInvoice = useMutation({
     mutationFn: (id) => api.post(`/admin/orders/${id}/invoice`),
     onSuccess: (res) => {
-      toast.success(`Factura ${res.data.number || ""} emitida`);
+      if (res.data.status === "emitida") {
+        toast.success(`Factura ${res.data.number || ""} emitida`);
+      } else {
+        toast.error("La factura tuvo un error — mira el detalle en Facturación");
+      }
       qc.invalidateQueries({ queryKey: ["admin-invoices"] });
     },
     onError: (err) => toast.error(apiError(err, "No se pudo emitir la factura")),

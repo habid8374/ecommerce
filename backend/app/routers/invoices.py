@@ -39,10 +39,8 @@ async def create_invoice_note(
     if not order:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Pedido de la factura no encontrado")
 
-    record = await create_note(db, order, invoice, body.kind, body.reason)
-    if record["status"] != "emitida":
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, record.get("error") or "Error emitiendo la nota")
-    return record
+    # Return the record even on failure so the UI can show the full error JSON.
+    return await create_note(db, order, invoice, body.kind, body.reason)
 
 
 @orders_router.post("/{order_id}/invoice")
@@ -58,6 +56,5 @@ async def emit_invoice_for_order(order_id: str, _: UserPublic = Depends(get_curr
             status.HTTP_400_BAD_REQUEST,
             "Facturación electrónica deshabilitada o la factura ya existe.",
         )
-    if record["status"] != "emitida":
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, record.get("error") or "Error emitiendo la factura")
+    # Return the record even on failure so the UI can show the full error JSON.
     return record

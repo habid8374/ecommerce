@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { FileText, ExternalLink, FileMinus, FilePlus } from "lucide-react";
+import { FileText, ExternalLink, FileMinus, FilePlus, Code } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import { formatCOP, formatDate } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,6 +25,7 @@ const TYPE_LABEL = {
 export default function AdminInvoices() {
   const qc = useQueryClient();
   const [note, setNote] = useState(null); // { invoice, kind, reason }
+  const [detail, setDetail] = useState(null); // invoice record to inspect
 
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ["admin-invoices"],
@@ -35,8 +36,13 @@ export default function AdminInvoices() {
   const createNote = useMutation({
     mutationFn: () =>
       api.post(`/admin/invoices/${note.invoice.id}/note`, { kind: note.kind, reason: note.reason }),
-    onSuccess: () => {
-      toast.success(note.kind === "credit" ? "Nota crédito emitida" : "Nota débito emitida");
+    onSuccess: (res) => {
+      if (res.data.status === "emitida") {
+        toast.success(note.kind === "credit" ? "Nota crédito emitida" : "Nota débito emitida");
+      } else {
+        toast.error("La nota tuvo un error — revisa el detalle");
+        setDetail(res.data);
+      }
       setNote(null);
       qc.invalidateQueries({ queryKey: ["admin-invoices"] });
     },
@@ -99,11 +105,16 @@ export default function AdminInvoices() {
                         {inv.status === "emitida" ? (
                           <span className="text-emerald-600">Emitida</span>
                         ) : (
-                          <span className="text-red-600" title={inv.error}>Error</span>
+                          <button className="text-red-600 underline" onClick={() => setDetail(inv)} title={inv.error}>
+                            Error
+                          </button>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" title="Ver JSON (envío / respuesta)" onClick={() => setDetail(inv)}>
+                            <Code className="h-4 w-4" />
+                          </Button>
                           {inv.public_url && (
                             <Button asChild variant="ghost" size="icon" title="Ver PDF">
                               <a href={inv.public_url} target="_blank" rel="noreferrer">
@@ -131,6 +142,38 @@ export default function AdminInvoices() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          {detail && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Diagnóstico del documento</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 text-sm">
+                {detail.error && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">
+                    <p className="font-medium">Error {detail.status_code ? `(HTTP ${detail.status_code})` : ""}</p>
+                    <p>{detail.error}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="mb-1 font-medium">Respuesta de Factus</p>
+                  <pre className="max-h-64 overflow-auto rounded-lg bg-neutral-900 p-3 text-xs text-neutral-100">
+                    {detail.error_detail || "(sin datos)"}
+                  </pre>
+                </div>
+                <div>
+                  <p className="mb-1 font-medium">Datos enviados (payload)</p>
+                  <pre className="max-h-64 overflow-auto rounded-lg bg-neutral-900 p-3 text-xs text-neutral-100">
+                    {detail.request_payload || "(sin datos)"}
+                  </pre>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!note} onOpenChange={(o) => !o && setNote(null)}>
         <DialogContent>

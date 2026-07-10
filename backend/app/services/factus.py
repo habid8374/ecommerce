@@ -167,11 +167,14 @@ def _post(f: dict, token: str, path: str, payload: dict) -> dict:
             json=payload,
             timeout=30,
         )
-        data = resp.json() if resp.content else {}
+        try:
+            data = resp.json() if resp.content else {}
+        except ValueError:
+            data = {"raw_text": resp.text[:4000]}
         if resp.status_code >= 300:
-            msg = data.get("message") or resp.text[:300]
-            logger.warning("Factus %s failed (%s): %s", path, resp.status_code, msg)
-            return {"ok": False, "error": msg}
+            msg = data.get("message") or str(data)[:300]
+            logger.warning("Factus %s failed (%s): %s", path, resp.status_code, str(data)[:600])
+            return {"ok": False, "error": msg, "status_code": resp.status_code, "raw": data}
         bill = (data.get("data") or {}).get("bill") or (data.get("data") or {})
         return {
             "ok": True,
@@ -183,7 +186,7 @@ def _post(f: dict, token: str, path: str, payload: dict) -> dict:
         }
     except requests.RequestException as exc:
         logger.warning("Factus %s error: %s", path, exc)
-        return {"ok": False, "error": str(exc)}
+        return {"ok": False, "error": str(exc), "raw": {"exception": str(exc)}}
 
 
 def _emit_sync(f: dict, order: dict) -> dict:
@@ -199,7 +202,9 @@ def _emit_sync(f: dict, order: dict) -> dict:
         "customer": _customer(order, f),
         "items": _items(order, f),
     }
-    return _post(f, token, "/v1/bills/validate", payload)
+    result = _post(f, token, "/v1/bills/validate", payload)
+    result["sent"] = payload
+    return result
 
 
 def _note_sync(f: dict, order: dict, kind: str, reason: str, invoice_number: str) -> dict:
@@ -219,7 +224,9 @@ def _note_sync(f: dict, order: dict, kind: str, reason: str, invoice_number: str
         "customer": _customer(order, f),
         "items": _items(order, f),
     }
-    return _post(f, token, path, payload)
+    result = _post(f, token, path, payload)
+    result["sent"] = payload
+    return result
 
 
 async def emit_invoice(order: dict) -> dict:

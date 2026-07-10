@@ -1,4 +1,5 @@
 """Orchestrates Factus emission + persistence in the `invoices` collection."""
+import json
 import logging
 
 from ..models import _now, _uuid
@@ -23,6 +24,12 @@ async def _record(db, order: dict, kind: str, result: dict, reason: str = "") ->
         "doc_number": order.get("doc_number", ""),
         "reason": reason,
         "error": result.get("error", ""),
+        # Full Factus response + the exact payload we sent, for diagnosis.
+        "error_detail": json.dumps(result.get("raw"), ensure_ascii=False, indent=2)[:8000]
+        if result.get("raw") is not None else "",
+        "request_payload": json.dumps(result.get("sent"), ensure_ascii=False, indent=2)[:8000]
+        if result.get("sent") else "",
+        "status_code": result.get("status_code"),
         "created_at": _now(),
     }
     await db.invoices.insert_one(dict(doc))
