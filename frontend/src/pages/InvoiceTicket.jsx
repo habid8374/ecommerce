@@ -64,8 +64,12 @@ export default function InvoiceTicket() {
       <style>{`
         @media print {
           .no-print { display:none !important }
-          @page { size: 80mm auto; margin: 3mm }
+          /* No forzamos tamaño de página: en impresora láser (carta) la tirilla
+             sale como una columna de 80mm centrada, sin estirarse; en térmica
+             de 80mm ocupa el rollo. */
+          @page { margin: 6mm }
           body { background: #fff }
+          .ticket { margin: 0 auto !important }
         }
       `}</style>
 
@@ -78,7 +82,7 @@ export default function InvoiceTicket() {
         </Button>
       </div>
 
-      <div className="mx-auto w-[302px] bg-white px-3 py-4 font-mono text-[11px] leading-tight text-black shadow-sm print:w-full print:shadow-none">
+      <div className="ticket mx-auto w-[80mm] max-w-[80mm] bg-white px-3 py-4 font-mono text-[11px] leading-tight text-black shadow-sm print:shadow-none">
         {/* Header */}
         <div className="text-center">
           <p className="text-sm font-extrabold tracking-wide">{company.name || "GRAFIBLESS"}</p>
