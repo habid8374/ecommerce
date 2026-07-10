@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
@@ -9,26 +10,42 @@ import { Skeleton } from "@/components/ui/skeleton";
 const NEON = "#2f6bff";
 
 function Hero() {
+  const videoRef = useRef(null);
+
+  // iOS Safari needs `muted` set as a property (React doesn't always reflect the
+  // attribute) and an explicit play() call for muted inline autoplay to work.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = true;
+    v.setAttribute("muted", "");
+    const p = v.play();
+    if (p && p.catch) p.catch(() => {});
+  }, []);
+
   return (
     <section className="relative mb-8 aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-black text-white">
       {/* Background video 16:9 — the section matches the video ratio so it shows
           in full, edge to edge, with no cropping or black bars. */}
       <video
+        ref={videoRef}
         className="pointer-events-none absolute inset-0 h-full w-full object-cover motion-reduce:hidden"
         src="/hero.mp4"
         autoPlay
         muted
         loop
         playsInline
-        preload="metadata"
+        webkit-playsinline="true"
+        preload="auto"
         aria-hidden="true"
       />
 
-      {/* Logo — bottom right corner */}
+      {/* Logo — bottom right corner (bigger on desktop to cover the video's
+          decorative sparkle / mark). */}
       <img
         src="/logo_grafibless.jpg"
         alt="GRAFIBLESS"
-        className="absolute bottom-5 right-5 h-12 w-auto rounded-lg shadow-xl sm:h-16"
+        className="absolute bottom-4 right-4 h-14 w-auto rounded-lg shadow-xl sm:bottom-6 sm:right-6 sm:h-24"
       />
 
       {/* Bottom neon line */}
