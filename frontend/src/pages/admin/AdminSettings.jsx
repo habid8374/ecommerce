@@ -31,6 +31,12 @@ export default function AdminSettings() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [factusData, setFactusData] = useState(null);
+  const [rangeForm, setRangeForm] = useState({
+    document: "21", prefix: "", from: "", to: "",
+    resolution_number: "", technical_key: "", start_date: "", end_date: "",
+  });
+  const [rangeResp, setRangeResp] = useState(null);
+  const [creatingRange, setCreatingRange] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-settings"],
@@ -78,6 +84,28 @@ export default function AdminSettings() {
 
   const w = form.wompi;
   const activeBlock = w.environment === "production" ? "production" : "test";
+  const fxEnv = form.factus?.environment === "production" ? "production" : "test";
+  const fx = form.factus?.[fxEnv] || {};
+
+  const createRange = async () => {
+    setCreatingRange(true);
+    setRangeResp(null);
+    try {
+      const { _effective, ...p } = form;
+      await api.put("/admin/settings", p); // save so the active env is used
+      const body = Object.fromEntries(
+        Object.entries(rangeForm).filter(([, v]) => String(v).trim() !== "")
+      );
+      const { data } = await api.post("/admin/settings/factus/numbering-range", body);
+      setRangeResp(data);
+      if (data.ok) toast.success("Rango creado en Factus");
+      else toast.error(data.error || "Factus rechazó la creación — revisa la respuesta");
+    } catch (err) {
+      toast.error(apiError(err, "No se pudo crear el rango"));
+    } finally {
+      setCreatingRange(false);
+    }
+  };
 
   return (
     <div className="max-w-3xl space-y-6 pb-10">
@@ -190,15 +218,35 @@ export default function AdminSettings() {
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="URL base de Factus" value={form.factus?.base_url || ""} onChange={inp("factus.base_url")} placeholder="https://api-sandbox.factus.com.co" />
+            <div className="space-y-2">
+              <Label>Ambiente</Label>
+              <Select value={fxEnv} onValueChange={set("factus.environment")}>
+                <SelectTrigger data-testid="factus-env"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="test">Pruebas (Sandbox)</SelectItem>
+                  <SelectItem value="production">Producción</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Field label="Versión de API (v1 / v2)" value={form.factus?.api_version || "v2"} onChange={inp("factus.api_version")} placeholder="v2" />
-            <Field label="Rango numeración FACTURA (ej: 389)" type="number" value={form.factus?.numbering_range_id || 0} onChange={(e) => set("factus.numbering_range_id")(Number(e.target.value))} />
-            <Field label="Rango numeración NOTA CRÉDITO (ej: 390)" type="number" value={form.factus?.numbering_range_id_credit || 0} onChange={(e) => set("factus.numbering_range_id_credit")(Number(e.target.value))} />
-            <Field label="Rango numeración NOTA DÉBITO (ej: 391)" type="number" value={form.factus?.numbering_range_id_debit || 0} onChange={(e) => set("factus.numbering_range_id_debit")(Number(e.target.value))} />
-            <Field label="Email (usuario Factus)" value={form.factus?.email || ""} onChange={inp("factus.email")} />
-            <Field label="Contraseña" type="password" value={form.factus?.password || ""} onChange={inp("factus.password")} />
-            <Field label="Client ID" value={form.factus?.client_id || ""} onChange={inp("factus.client_id")} />
-            <Field label="Client Secret" type="password" value={form.factus?.client_secret || ""} onChange={inp("factus.client_secret")} />
+          </div>
+
+          <div className={`rounded-lg border p-3 ${fxEnv === "production" ? "border-emerald-300 bg-emerald-50/40" : "border-amber-300 bg-amber-50/40"}`}>
+            <p className="mb-3 text-sm font-semibold">
+              Credenciales — {fxEnv === "production" ? "Producción" : "Pruebas (Sandbox)"}
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="URL base de Factus" value={fx.base_url || ""} onChange={inp(`factus.${fxEnv}.base_url`)} placeholder={fxEnv === "production" ? "https://api.factus.com.co" : "https://api-sandbox.factus.com.co"} />
+              <Field label="Email (usuario Factus)" value={fx.email || ""} onChange={inp(`factus.${fxEnv}.email`)} />
+              <Field label="Contraseña" type="password" value={fx.password || ""} onChange={inp(`factus.${fxEnv}.password`)} />
+              <Field label="Client ID" value={fx.client_id || ""} onChange={inp(`factus.${fxEnv}.client_id`)} />
+              <Field label="Client Secret" type="password" value={fx.client_secret || ""} onChange={inp(`factus.${fxEnv}.client_secret`)} />
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <Field label="Rango FACTURA (ej: 389)" type="number" value={fx.numbering_range_id || 0} onChange={(e) => set(`factus.${fxEnv}.numbering_range_id`)(Number(e.target.value))} />
+              <Field label="Rango N. CRÉDITO (390)" type="number" value={fx.numbering_range_id_credit || 0} onChange={(e) => set(`factus.${fxEnv}.numbering_range_id_credit`)(Number(e.target.value))} />
+              <Field label="Rango N. DÉBITO (391)" type="number" value={fx.numbering_range_id_debit || 0} onChange={(e) => set(`factus.${fxEnv}.numbering_range_id_debit`)(Number(e.target.value))} />
+            </div>
           </div>
           <details className="rounded-lg border p-3">
             <summary className="cursor-pointer text-sm font-medium">Catálogos DIAN (avanzado)</summary>
@@ -254,10 +302,10 @@ export default function AdminSettings() {
                   <div className="space-y-1">
                     {factusData.numbering_ranges.map((r) => (
                       <button key={r.id} type="button"
-                        onClick={() => { set("factus.numbering_range_id")(r.id); toast.success(`Rango ${r.id} (factura) seleccionado`); }}
+                        onClick={() => { set(`factus.${fxEnv}.numbering_range_id`)(r.id); toast.success(`Rango ${r.id} (factura) seleccionado`); }}
                         className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left hover:bg-accent">
                         <span><b>ID {r.id}</b> · {r.document} {r.prefix ? `(${r.prefix})` : ""}</span>
-                        <span className="text-xs text-muted-foreground">{form.factus?.numbering_range_id === r.id ? "✓" : "factura"}</span>
+                        <span className="text-xs text-muted-foreground">{fx.numbering_range_id === r.id ? "✓" : "factura"}</span>
                       </button>
                     ))}
                   </div>
@@ -314,6 +362,33 @@ export default function AdminSettings() {
                 )}
             </div>
           )}
+          <details className="rounded-lg border p-3">
+            <summary className="cursor-pointer text-sm font-medium">Crear rango de numeración (avanzado)</summary>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Registra un rango en Factus del ambiente <b>{fxEnv === "production" ? "Producción" : "Pruebas"}</b>.
+              En producción usa los datos de tu <b>resolución DIAN</b>. Se muestra la respuesta cruda de Factus
+              para ajustar campos si hace falta.
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <Field label="Prefijo (ej: SETP)" value={rangeForm.prefix} onChange={(e) => setRangeForm((r) => ({ ...r, prefix: e.target.value }))} />
+              <Field label="Documento / tipo (código)" value={rangeForm.document} onChange={(e) => setRangeForm((r) => ({ ...r, document: e.target.value }))} placeholder="21" />
+              <Field label="Desde (número inicial)" type="number" value={rangeForm.from} onChange={(e) => setRangeForm((r) => ({ ...r, from: e.target.value }))} />
+              <Field label="Hasta (número final)" type="number" value={rangeForm.to} onChange={(e) => setRangeForm((r) => ({ ...r, to: e.target.value }))} />
+              <Field label="Número de resolución DIAN" value={rangeForm.resolution_number} onChange={(e) => setRangeForm((r) => ({ ...r, resolution_number: e.target.value }))} />
+              <Field label="Clave técnica (technical_key)" value={rangeForm.technical_key} onChange={(e) => setRangeForm((r) => ({ ...r, technical_key: e.target.value }))} />
+              <Field label="Fecha inicio (YYYY-MM-DD)" value={rangeForm.start_date} onChange={(e) => setRangeForm((r) => ({ ...r, start_date: e.target.value }))} placeholder="2026-01-01" />
+              <Field label="Fecha fin (YYYY-MM-DD)" value={rangeForm.end_date} onChange={(e) => setRangeForm((r) => ({ ...r, end_date: e.target.value }))} placeholder="2027-01-01" />
+            </div>
+            <Button type="button" variant="outline" className="mt-3" disabled={creatingRange} onClick={createRange} data-testid="factus-create-range">
+              <Plus className="mr-2 h-4 w-4" /> {creatingRange ? "Creando..." : "Crear rango en Factus"}
+            </Button>
+            {rangeResp && (
+              <pre className="mt-3 max-h-64 overflow-auto rounded-lg bg-neutral-900 p-3 text-xs text-neutral-100">
+                {JSON.stringify(rangeResp.raw ?? rangeResp, null, 2)}
+              </pre>
+            )}
+          </details>
+
           <p className="text-xs text-muted-foreground">
             Al aprobarse el pago se emite la factura y se envía al correo del cliente.
             El listado y las notas crédito/débito están en el módulo <b>Facturación</b>.

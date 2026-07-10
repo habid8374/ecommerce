@@ -12,7 +12,7 @@ import logging
 
 import requests
 
-from .settings_store import get_settings
+from .settings_store import get_settings, resolve_factus
 
 logger = logging.getLogger(__name__)
 
@@ -162,10 +162,7 @@ def test_connection_sync(f: dict) -> dict:
 
 
 async def test_connection() -> dict:
-    from .settings_store import get_settings
-    import asyncio
-
-    f = (await get_settings()).get("factus", {})
+    f = resolve_factus(await get_settings())
     return await asyncio.to_thread(test_connection_sync, f)
 
 
@@ -302,8 +299,7 @@ def list_bills_sync(f: dict) -> dict:
 
 
 async def list_bills() -> dict:
-    settings = await get_settings()
-    f = settings.get("factus", {})
+    f = resolve_factus(await get_settings())
     if not f.get("enabled"):
         return {"ok": False, "error": "Facturación electrónica deshabilitada."}
     return await asyncio.to_thread(list_bills_sync, f)
@@ -481,9 +477,26 @@ def _note_sync(f: dict, order: dict, kind: str, reason: str, invoice_number: str
     return result
 
 
+def create_numbering_range_sync(f: dict, payload: dict) -> dict:
+    """Create/register a numbering range in Factus. Returns the raw response so
+    the UI can iterate on the exact fields the account requires."""
+    if not (f.get("base_url") and f.get("client_id") and f.get("email")):
+        return {"ok": False, "error": "Faltan credenciales de Factus."}
+    token, err = _token_detailed(f)
+    if not token:
+        return {"ok": False, "error": err or "No se pudo autenticar."}
+    result = _post(f, token, f"/{_v(f)}/numbering-ranges", payload)
+    result["sent"] = payload
+    return result
+
+
+async def create_numbering_range(payload: dict) -> dict:
+    f = resolve_factus(await get_settings())
+    return await asyncio.to_thread(create_numbering_range_sync, f, payload)
+
+
 async def emit_invoice(order: dict) -> dict:
-    settings = await get_settings()
-    f = settings.get("factus", {})
+    f = resolve_factus(await get_settings())
     if not f.get("enabled"):
         return {"ok": False, "error": "Facturación electrónica deshabilitada."}
     if not (f.get("client_id") and f.get("email") and f.get("numbering_range_id")):
@@ -492,8 +505,7 @@ async def emit_invoice(order: dict) -> dict:
 
 
 async def emit_note(order: dict, kind: str, reason: str, invoice_number: str) -> dict:
-    settings = await get_settings()
-    f = settings.get("factus", {})
+    f = resolve_factus(await get_settings())
     if not f.get("enabled"):
         return {"ok": False, "error": "Facturación electrónica deshabilitada."}
     return await asyncio.to_thread(_note_sync, f, order, kind, reason, invoice_number)

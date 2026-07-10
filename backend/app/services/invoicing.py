@@ -4,7 +4,7 @@ import logging
 
 from ..models import _now, _uuid
 from . import factus
-from .settings_store import get_settings
+from .settings_store import get_settings, resolve_factus
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ async def emit_and_store(db, order: dict, auto: bool = True) -> dict | None:
     Skips silently when Factus is disabled or (for auto mode) auto-emit is off,
     and avoids emitting a second invoice for the same order.
     """
-    f = (await get_settings()).get("factus", {})
+    f = resolve_factus(await get_settings())
     if not f.get("enabled"):
         return None
     if auto and not f.get("auto_emit", True):

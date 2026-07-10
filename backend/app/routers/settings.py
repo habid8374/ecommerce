@@ -51,3 +51,15 @@ async def test_factus(_: UserPublic = Depends(get_current_admin)):
     from ..services.factus import test_connection
 
     return await test_connection()
+
+
+@router.post("/factus/numbering-range")
+async def create_factus_range(
+    payload: dict = Body(...), _: UserPublic = Depends(get_current_admin)
+):
+    """Create/register a numbering range in Factus (uses the active environment).
+    Returns the raw Factus response so the fields can be adjusted if needed."""
+    from ..services.factus import create_numbering_range
+
+    payload.pop("_id", None)
+    return await create_numbering_range(payload)

@@ -43,19 +43,27 @@ DEFAULTS = {
         "phone": "",
         "email": "",
     },
-    # Factus electronic invoicing (DIAN). Filled in from the admin panel.
+    # Factus electronic invoicing (DIAN). Two environments (test/production)
+    # with separate credentials, like Wompi. Filled in from the admin panel.
     "factus": {
         "enabled": False,
         "auto_emit": True,  # emit the invoice automatically when payment is approved
         "api_version": "v2",  # Factus API version (this account uses v2)
-        "base_url": "https://api-sandbox.factus.com.co",
-        "email": "",
-        "password": "",
-        "client_id": "",
-        "client_secret": "",
-        "numbering_range_id": 0,          # Factura de venta (ej: 389 SETP)
-        "numbering_range_id_credit": 0,   # Nota crédito (ej: 390 NC)
-        "numbering_range_id_debit": 0,    # Nota débito (ej: 391 ND)
+        "environment": "test",  # "test" | "production"
+        "test": {
+            "base_url": "https://api-sandbox.factus.com.co",
+            "email": "", "password": "", "client_id": "", "client_secret": "",
+            "numbering_range_id": 0,          # Factura de venta (ej: 389 SETP)
+            "numbering_range_id_credit": 0,   # Nota crédito (ej: 390 NC)
+            "numbering_range_id_debit": 0,    # Nota débito (ej: 391 ND)
+        },
+        "production": {
+            "base_url": "https://api.factus.com.co",
+            "email": "", "password": "", "client_id": "", "client_secret": "",
+            "numbering_range_id": 0,
+            "numbering_range_id_credit": 0,
+            "numbering_range_id_debit": 0,
+        },
         "default_iva": 0,  # % IVA applied to items (0 or 19)
         # DIAN catalog values — API v2 (codes, adjust to your account).
         "municipality_code": "08001",  # Barranquilla (DANE)
@@ -96,6 +104,12 @@ WOMPI_HOSTS = {
     "production": "https://production.wompi.co/v1",
 }
 
+# Factus API hosts per environment.
+FACTUS_HOSTS = {
+    "test": "https://api-sandbox.factus.com.co",
+    "production": "https://api.factus.com.co",
+}
+
 
 def _merge(base: dict, override: dict) -> dict:
     out = deepcopy(base)
@@ -107,9 +121,30 @@ def _merge(base: dict, override: dict) -> dict:
     return out
 
 
+def _migrate_factus(settings: dict) -> dict:
+    """Lift legacy flat Factus credentials into the new `test` block so existing
+    configs keep working after adding the test/production split."""
+    fx = settings.get("factus")
+    if not isinstance(fx, dict):
+        return settings
+    test = fx.get("test") or {}
+    cred_keys = ("email", "client_id", "client_secret", "password")
+    flat_has = any(fx.get(k) for k in cred_keys)
+    test_has = any(test.get(k) for k in cred_keys)
+    if flat_has and not test_has:
+        for k in (
+            "base_url", "email", "password", "client_id", "client_secret",
+            "numbering_range_id", "numbering_range_id_credit", "numbering_range_id_debit",
+        ):
+            if fx.get(k) not in (None, "", 0) and not test.get(k):
+                test[k] = fx[k]
+        fx["test"] = test
+    return settings
+
+
 async def get_settings() -> dict:
     doc = await get_db().settings.find_one({"id": SETTINGS_ID}, {"_id": 0})
-    return _merge(DEFAULTS, doc or {})
+    return _migrate_factus(_merge(DEFAULTS, doc or {}))
 
 
 async def update_settings(patch: dict) -> dict:
@@ -145,6 +180,48 @@ def resolve_wompi(settings: dict) -> dict:
         "enabled": enabled,
         # Simulated payments only when no real keys AND env allows it.
         "simulate": (not enabled) and config.SIMULATE_PAYMENTS,
+    }
+
+
+def resolve_factus(settings: dict) -> dict:
+    """Effective Factus config from the active environment (test/production),
+    falling back to legacy flat fields for backward compatibility."""
+    fx = settings.get("factus", {}) or {}
+    env = fx.get("environment", "test")
+    if env not in ("test", "production"):
+        env = "test"
+    block = fx.get(env, {}) or {}
+
+    def pick(key, default):
+        v = block.get(key)
+        if v in (None, "", 0):
+            alt = fx.get(key)  # legacy flat value
+            if alt not in (None, "", 0):
+                v = alt
+        return v if v not in (None, "") else default
+
+    return {
+        "enabled": fx.get("enabled", False),
+        "auto_emit": fx.get("auto_emit", True),
+        "environment": env,
+        "api_version": fx.get("api_version", "v2"),
+        "base_url": pick("base_url", FACTUS_HOSTS[env]),
+        "email": pick("email", ""),
+        "password": pick("password", ""),
+        "client_id": pick("client_id", ""),
+        "client_secret": pick("client_secret", ""),
+        "numbering_range_id": pick("numbering_range_id", 0),
+        "numbering_range_id_credit": pick("numbering_range_id_credit", 0),
+        "numbering_range_id_debit": pick("numbering_range_id_debit", 0),
+        # DIAN catalog values are shared across environments.
+        "default_iva": fx.get("default_iva", 0),
+        "municipality_code": fx.get("municipality_code", "08001"),
+        "payment_form": fx.get("payment_form", "1"),
+        "payment_method_code": fx.get("payment_method_code", "10"),
+        "customer_tribute_code": fx.get("customer_tribute_code", "21"),
+        "unit_measure_code": fx.get("unit_measure_code", "94"),
+        "standard_code": fx.get("standard_code", "999"),
+        "tax_code": fx.get("tax_code", "01"),
     }
 
 
