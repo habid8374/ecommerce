@@ -48,13 +48,19 @@ export default function InvoicePrint() {
   const subtotal = order.subtotal ?? items.reduce((s, it) => s + (it.subtotal || 0), 0);
   const shippingCost = order.shipping_cost ?? 0;
 
+  const dataLevel = fd?.data || {};
   const number = inv.number || bill.number || "";
-  const cufe = inv.cufe || bill.cufe || bill.cude || "";
-  const qr = inv.qr || bill.qr || bill.qr_image || inv.public_url || "";
-  const qrImg = qr
-    ? qr.startsWith("data:") || /\.(png|jpg|jpeg|svg)$/i.test(qr) || qr.includes("qr")
-      ? qr
-      : `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qr)}`
+  const cufe = inv.cufe || bill.cufe || bill.cude || dataLevel.cufe || "";
+  // Factus returns the QR at the `data` level (image as base64, or a URL to
+  // encode). Prefer a ready image; otherwise turn the QR content into an image.
+  const qrImage = bill.qr_image || dataLevel.qr_image || (inv.qr?.startsWith?.("data:") ? inv.qr : "");
+  const qrContent = bill.qr || dataLevel.qr || inv.qr || inv.public_url || "";
+  const qrImg = qrImage
+    ? qrImage
+    : qrContent
+    ? /^data:/.test(qrContent) || /\.(png|jpe?g|svg)(\?|$)/i.test(qrContent)
+      ? qrContent
+      : `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrContent)}`
     : "";
 
   return (
@@ -95,7 +101,7 @@ export default function InvoicePrint() {
         </div>
 
         {/* Customer */}
-        <div className="mt-4 grid grid-cols-2 gap-4">
+        <div className="mt-4">
           <div className="rounded-lg border p-3">
             <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">Adquiriente</p>
             <p className="font-medium">{inv.customer_name || addr.full_name}</p>
@@ -103,22 +109,6 @@ export default function InvoicePrint() {
             <p className="text-muted-foreground">{inv.customer_email || order.customer_email}</p>
             <p className="text-muted-foreground">{addr.phone}</p>
             <p className="text-muted-foreground">{addr.address}{addr.city ? `, ${addr.city}` : ""} {addr.region}</p>
-          </div>
-          <div className="rounded-lg border p-3">
-            <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">Datos DIAN</p>
-            {cufe ? (
-              <p className="break-all text-xs"><b>CUFE:</b> {cufe}</p>
-            ) : (
-              <p className="text-xs text-muted-foreground">CUFE pendiente</p>
-            )}
-            {inv.reason && <p className="mt-1 text-xs"><b>Motivo:</b> {inv.reason}</p>}
-            {inv.public_url && (
-              <p className="mt-1 text-xs">
-                <a href={inv.public_url} target="_blank" rel="noreferrer" className="text-primary underline">
-                  Validar en Factus/DIAN
-                </a>
-              </p>
-            )}
           </div>
         </div>
 
@@ -144,19 +134,31 @@ export default function InvoicePrint() {
           </tbody>
         </table>
 
-        {/* Totals + QR */}
-        <div className="mt-4 flex items-start justify-between gap-6">
-          <div className="flex flex-col items-center">
-            {qrImg ? (
-              <img src={qrImg} alt="QR DIAN" className="h-36 w-36" />
-            ) : (
-              <div className="flex h-36 w-36 items-center justify-center rounded border text-center text-[10px] text-muted-foreground">
-                QR disponible al emitir
-              </div>
-            )}
-            <p className="mt-1 text-[10px] text-muted-foreground">Código QR - DIAN</p>
+        {/* QR + CUFE (left) and Totals (right) */}
+        <div className="mt-6 flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="flex flex-col items-center">
+              {qrImg ? (
+                <img src={qrImg} alt="QR DIAN" className="h-32 w-32" />
+              ) : (
+                <div className="flex h-32 w-32 items-center justify-center rounded border text-center text-[10px] text-muted-foreground">
+                  QR no disponible
+                </div>
+              )}
+              <p className="mt-1 text-[10px] text-muted-foreground">Código QR - DIAN</p>
+            </div>
+            <div className="max-w-[260px] text-xs">
+              <p className="font-semibold uppercase text-muted-foreground">CUFE</p>
+              <p className="break-all font-mono text-[10px] leading-relaxed">{cufe || "—"}</p>
+              {inv.reason && <p className="mt-2"><b>Motivo:</b> {inv.reason}</p>}
+              {inv.public_url && (
+                <a href={inv.public_url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-primary underline">
+                  Validar en DIAN
+                </a>
+              )}
+            </div>
           </div>
-          <div className="w-56 space-y-1">
+          <div className="w-52 shrink-0 space-y-1">
             <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCOP(subtotal)}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Envío</span><span>{shippingCost === 0 ? "—" : formatCOP(shippingCost)}</span></div>
             <div className="flex justify-between border-t pt-1 text-base font-bold"><span>Total</span><span>{formatCOP(inv.total || order.total)}</span></div>
