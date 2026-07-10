@@ -69,23 +69,13 @@ function Hero() {
           </p>
         </div>
 
-        {/* Center — monogram + wordmark */}
+        {/* Center — official GRAFIBLESS logo */}
         <div className="order-1 flex flex-col items-center border-white/10 text-center lg:order-2 lg:border-x lg:px-6">
-          <div className="flex items-center justify-center leading-none">
-            <span className="text-6xl font-black italic tracking-tighter text-white drop-shadow-[0_0_22px_rgba(47,107,255,0.45)] sm:text-8xl">
-              G
-            </span>
-            <span
-              className="-ml-2 text-6xl font-black italic tracking-tighter sm:text-8xl"
-              style={{ color: NEON, textShadow: "0 0 26px rgba(47,107,255,0.8)" }}
-            >
-              R
-            </span>
-          </div>
-          <h1 className="mt-2 text-4xl font-black tracking-tight sm:text-6xl">
-            <span className="text-white">GRAFI</span>
-            <span style={{ color: NEON }} className="drop-shadow-[0_0_14px_rgba(47,107,255,0.7)]">BLESS</span>
-          </h1>
+          <img
+            src="/logo_grafibless.jpg"
+            alt="GRAFIBLESS"
+            className="w-full max-w-[340px] drop-shadow-[0_0_28px_rgba(47,107,255,0.35)]"
+          />
           <div className="mt-3 flex w-full items-center justify-center gap-3">
             <span className="h-px flex-1 max-w-[60px]" style={{ background: `linear-gradient(90deg, transparent, ${NEON})` }} />
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/85 sm:text-sm">
