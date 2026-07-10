@@ -12,15 +12,30 @@ const NEON = "#2f6bff";
 function Hero() {
   const videoRef = useRef(null);
 
-  // iOS Safari needs `muted` set as a property (React doesn't always reflect the
-  // attribute) and an explicit play() call for muted inline autoplay to work.
+  // Robust autoplay across devices (esp. iPhone): force `muted` as a property
+  // (React doesn't always reflect the attribute), call play(), and fall back to
+  // starting on the first user interaction if the browser blocks autoplay.
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
     v.muted = true;
     v.setAttribute("muted", "");
-    const p = v.play();
-    if (p && p.catch) p.catch(() => {});
+    const tryPlay = () => {
+      const p = v.play();
+      if (p && p.catch) p.catch(() => {});
+    };
+    tryPlay();
+    const onInteract = () => {
+      tryPlay();
+      document.removeEventListener("touchend", onInteract);
+      document.removeEventListener("click", onInteract);
+    };
+    document.addEventListener("touchend", onInteract, { once: true });
+    document.addEventListener("click", onInteract, { once: true });
+    return () => {
+      document.removeEventListener("touchend", onInteract);
+      document.removeEventListener("click", onInteract);
+    };
   }, []);
 
   return (
@@ -29,7 +44,7 @@ function Hero() {
           in full, edge to edge, with no cropping or black bars. */}
       <video
         ref={videoRef}
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover motion-reduce:hidden"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
         src="/hero.mp4"
         autoPlay
         muted
@@ -40,12 +55,12 @@ function Hero() {
         aria-hidden="true"
       />
 
-      {/* Logo — bottom right corner (bigger on desktop to cover the video's
+      {/* Logo — bottom right corner (large on desktop to cover the video's
           decorative sparkle / mark). */}
       <img
         src="/logo_grafibless.jpg"
         alt="GRAFIBLESS"
-        className="absolute bottom-4 right-4 h-14 w-auto rounded-lg shadow-xl sm:bottom-6 sm:right-6 sm:h-24"
+        className="absolute bottom-4 right-4 h-16 w-auto rounded-lg shadow-xl sm:bottom-6 sm:right-6 sm:h-28 lg:h-32"
       />
 
       {/* Bottom neon line */}
