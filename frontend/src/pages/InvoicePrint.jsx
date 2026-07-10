@@ -51,6 +51,9 @@ export default function InvoicePrint() {
   const dataLevel = fd?.data || {};
   const links = dataLevel.links || bill.links || {};
   const range = dataLevel.numbering_range || {};
+  const totals = dataLevel.totals || {};
+  const taxAmount = Number(totals.tax_amount ?? 0) || 0;
+  const totalAmount = totals.total ? Number(totals.total) : (inv.total || order.total || 0);
   const number = inv.number || bill.number || "";
   const cufe = inv.cufe || bill.cufe || bill.cude || dataLevel.cufe || "";
   const publicUrl = inv.public_url || links.public_url || "";
@@ -164,7 +167,9 @@ export default function InvoicePrint() {
           <div className="w-52 shrink-0 space-y-1">
             <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCOP(subtotal)}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Envío</span><span>{shippingCost === 0 ? "—" : formatCOP(shippingCost)}</span></div>
-            <div className="flex justify-between border-t pt-1 text-base font-bold"><span>Total</span><span>{formatCOP(inv.total || order.total)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Base gravable</span><span>{formatCOP(subtotal + shippingCost)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">IVA</span><span>{formatCOP(taxAmount)}</span></div>
+            <div className="flex justify-between border-t pt-1 text-base font-bold"><span>Total</span><span>{formatCOP(totalAmount)}</span></div>
           </div>
         </div>
 
