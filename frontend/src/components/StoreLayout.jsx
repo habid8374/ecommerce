@@ -5,7 +5,6 @@ import { ShoppingCart, Package, LogOut, LayoutDashboard, Search, User } from "lu
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
-import Logo from "@/components/Logo";
 import AxentiaLogo from "@/components/AxentiaLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -183,7 +182,7 @@ export default function StoreLayout() {
         <div className="mx-auto max-w-7xl px-6 py-10">
           {/* Brand + quick links */}
           <div className="flex flex-col items-center gap-4 border-b border-white/10 pb-8 text-center sm:flex-row sm:justify-between sm:text-left">
-            <Logo size={28} />
+            <img src="/logo_grafibless.jpg" alt="GRAFIBLESS" className="h-11 w-auto rounded-md" />
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/70">
               <Link to="/" className="hover:text-white">Inicio</Link>
               <Link to="/orders" className="hover:text-white">Mis pedidos</Link>
