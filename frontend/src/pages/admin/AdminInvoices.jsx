@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { FileText, ExternalLink, FileMinus, FilePlus, Code } from "lucide-react";
+import { Link } from "react-router-dom";
+import { FileText, ExternalLink, FileMinus, FilePlus, Code, Printer } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import { formatCOP, formatDate } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
@@ -112,6 +113,13 @@ export default function AdminInvoices() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
+                          {inv.status === "emitida" && (
+                            <Button asChild variant="ghost" size="icon" title="Representación gráfica (imprimir)">
+                              <Link to={`/invoice/${inv.id}/print`} target="_blank">
+                                <Printer className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" title="Ver JSON (envío / respuesta)" onClick={() => setDetail(inv)}>
                             <Code className="h-4 w-4" />
                           </Button>

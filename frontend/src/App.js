@@ -18,6 +18,7 @@ import MyOrders from "@/pages/MyOrders";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import OrderPrint from "@/pages/OrderPrint";
+import InvoicePrint from "@/pages/InvoicePrint";
 
 import Dashboard from "@/pages/admin/Dashboard";
 import AdminOrders from "@/pages/admin/AdminOrders";
@@ -74,6 +75,16 @@ function App() {
                 <ProtectedRoute>
                   <OrderPrint />
                 </ProtectedRoute>
+              }
+            />
+
+            {/* Printable electronic invoice (representación gráfica) */}
+            <Route
+              path="/invoice/:id/print"
+              element={
+                <AdminRoute>
+                  <InvoicePrint />
+                </AdminRoute>
               }
             />
 

@@ -25,6 +25,17 @@ async def list_invoices(_: UserPublic = Depends(get_current_admin)):
     return docs
 
 
+@router.get("/{invoice_id}")
+async def get_invoice(invoice_id: str, _: UserPublic = Depends(get_current_admin)):
+    """One invoice + its order (for the printable graphical representation)."""
+    db = get_db()
+    inv = await db.invoices.find_one({"id": invoice_id}, PROJECT)
+    if not inv:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Documento no encontrado")
+    order = await db.orders.find_one({"id": inv.get("order_id")}, PROJECT)
+    return {"invoice": inv, "order": order}
+
+
 @router.post("/{invoice_id}/note")
 async def create_invoice_note(
     invoice_id: str, body: NoteCreate, _: UserPublic = Depends(get_current_admin)
