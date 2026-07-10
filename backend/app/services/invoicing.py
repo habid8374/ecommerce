@@ -10,6 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 async def _record(db, order: dict, kind: str, result: dict, reason: str = "") -> dict:
+    # Include the auto-unblock diagnostics in the error detail when present.
+    detail_obj = result.get("raw")
+    if result.get("unblock_debug") is not None:
+        detail_obj = {"response": result.get("raw"), "unblock_debug": result["unblock_debug"]}
     doc = {
         "id": _uuid(),
         "order_id": order["id"],
@@ -27,9 +31,9 @@ async def _record(db, order: dict, kind: str, result: dict, reason: str = "") ->
         "doc_number": order.get("doc_number", ""),
         "reason": reason,
         "error": result.get("error", ""),
-        # Full Factus response + the exact payload we sent, for diagnosis.
-        "error_detail": json.dumps(result.get("raw"), ensure_ascii=False, indent=2)[:8000]
-        if result.get("raw") is not None else "",
+        # Full Factus response (+ unblock diagnostics) and the payload we sent.
+        "error_detail": json.dumps(detail_obj, ensure_ascii=False, indent=2)[:8000]
+        if detail_obj is not None else "",
         "request_payload": json.dumps(result.get("sent"), ensure_ascii=False, indent=2)[:8000]
         if result.get("sent") else "",
         "status_code": result.get("status_code"),

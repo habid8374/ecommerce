@@ -305,8 +305,9 @@ async def list_bills() -> dict:
     return await asyncio.to_thread(list_bills_sync, f)
 
 
-def _raw_bills(f: dict, token: str) -> list[dict]:
-    """Raw bill rows from GET /bills (first pages) — keeps numeric status."""
+def _raw_bills(f: dict, token: str, query: str = "") -> list[dict]:
+    """Raw bill rows from GET /bills (first pages) — keeps numeric status.
+    `query` adds extra querystring params (e.g. 'filter[status]=0')."""
     base = f["base_url"].rstrip("/")
     ver = _v(f)
     headers = {
@@ -314,10 +315,11 @@ def _raw_bills(f: dict, token: str) -> list[dict]:
         "Accept": "application/json",
         "X-Requested-With": "XMLHttpRequest",
     }
+    extra = f"&{query}" if query else ""
     rows: list[dict] = []
     for page in range(1, 6):
         try:
-            resp = requests.get(f"{base}/{ver}/bills?page={page}", headers=headers, timeout=30)
+            resp = requests.get(f"{base}/{ver}/bills?page={page}{extra}", headers=headers, timeout=30)
         except requests.RequestException:
             break
         if resp.status_code >= 300:
@@ -378,16 +380,35 @@ def unblock_pending_sync(f: dict, token: str | None = None) -> dict:
         token, err = _token_detailed(f)
         if not token:
             return {"ok": False, "error": err or "No se pudo autenticar.", "deleted": []}
-    deleted, failed = [], []
-    for b in _raw_bills(f, token):
-        if not _is_pending(b):
-            continue
+    # Prefer the explicit "pending" filter; fall back to scanning all bills.
+    rows = _raw_bills(f, token, "filter[status]=0")
+    used_filter = bool(rows)
+    if not rows:
+        rows = [b for b in _raw_bills(f, token) if _is_pending(b)]
+    deleted, failed, samples = [], [], []
+    for b in rows:
         ref = b.get("reference_code") or b.get("reference")
+        num = b.get("number") or b.get("name")
+        # The list may omit reference_code; fetch the detail to get it.
+        if not ref and num:
+            detail = _bill_detail_sync(f, token, num)
+            if detail:
+                ref = detail.get("reference_code") or detail.get("reference")
+        if len(samples) < 15:
+            samples.append({"number": num, "reference_code": ref, "status": b.get("status")})
         if not ref:
+            failed.append({"number": num, "why": "sin reference_code"})
             continue
         res = _delete_bill_sync(f, token, ref)
         (deleted if res.get("ok") else failed).append(ref)
-    return {"ok": True, "deleted": deleted, "failed": failed}
+    return {
+        "ok": True,
+        "deleted": deleted,
+        "failed": failed,
+        "checked": len(rows),
+        "used_filter": used_filter,
+        "samples": samples,
+    }
 
 
 async def unblock_pending() -> dict:
@@ -540,14 +561,23 @@ def _emit_sync(f: dict, order: dict) -> dict:
     }
     result = _post(f, token, f"/{_v(f)}/bills/validate", payload)
     # 409 = a previous unvalidated bill is blocking the numbering queue. Delete
-    # the stuck bills and retry once (the documented recovery).
+    # our own stuck bill (same reference) AND any other status-0 bills, then
+    # retry once (the documented recovery).
     if not result.get("ok") and result.get("status_code") == 409:
+        own = _delete_bill_sync(f, token, ref)
         unblock = unblock_pending_sync(f, token)
-        result["unblocked"] = unblock.get("deleted")
-        if unblock.get("deleted"):
-            logger.info("Factus: unblocked %s pending bill(s), retrying emit", len(unblock["deleted"]))
-            result = _post(f, token, f"/{_v(f)}/bills/validate", payload)
-            result["unblocked"] = unblock.get("deleted")
+        logger.info(
+            "Factus 409: own-ref delete=%s, unblocked=%s (checked=%s)",
+            own.get("status_code"), unblock.get("deleted"), unblock.get("checked"),
+        )
+        retry = _post(f, token, f"/{_v(f)}/bills/validate", payload)
+        retry["unblocked"] = unblock.get("deleted")
+        retry["unblock_debug"] = {
+            "own_ref": ref, "own_delete_status": own.get("status_code"),
+            "checked": unblock.get("checked"), "used_filter": unblock.get("used_filter"),
+            "samples": unblock.get("samples"), "failed": unblock.get("failed"),
+        }
+        result = retry
     result["sent"] = payload
     return result
 
@@ -575,11 +605,14 @@ def _note_sync(f: dict, order: dict, kind: str, reason: str, invoice_number: str
     }
     result = _post(f, token, path, payload)
     if not result.get("ok") and result.get("status_code") == 409:
+        _delete_bill_sync(f, token, ref)
         unblock = unblock_pending_sync(f, token)
-        result["unblocked"] = unblock.get("deleted")
-        if unblock.get("deleted"):
-            result = _post(f, token, path, payload)
-            result["unblocked"] = unblock.get("deleted")
+        retry = _post(f, token, path, payload)
+        retry["unblocked"] = unblock.get("deleted")
+        retry["unblock_debug"] = {
+            "checked": unblock.get("checked"), "samples": unblock.get("samples"),
+        }
+        result = retry
     result["sent"] = payload
     return result
 

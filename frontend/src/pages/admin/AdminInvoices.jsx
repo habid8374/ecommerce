@@ -56,11 +56,17 @@ export default function AdminInvoices() {
     mutationFn: () => api.post("/admin/invoices/unblock-factus"),
     onSuccess: (res) => {
       const n = res.data.deleted?.length ?? 0;
-      toast.success(
-        n > 0
-          ? `${n} factura(s) pendiente(s) eliminada(s) — la cola quedó libre. Reintenta emitir.`
-          : "No había facturas pendientes bloqueando la cola."
-      );
+      if (n > 0) {
+        toast.success(`${n} factura(s) pendiente(s) eliminada(s) — la cola quedó libre. Reintenta emitir.`);
+      } else {
+        toast.message("No se borró ninguna. Mira el diagnóstico para saber por qué.");
+        // Reuse the diagnostics dialog to show what Factus returned.
+        setDetail({
+          error: `Revisadas: ${res.data.checked ?? 0} facturas (filtro status 0: ${res.data.used_filter ? "sí" : "no"})`,
+          error_detail: JSON.stringify(res.data, null, 2),
+          request_payload: "",
+        });
+      }
       qc.invalidateQueries({ queryKey: ["admin-invoices"] });
     },
     onError: (err) => toast.error(apiError(err, "No se pudo desbloquear la cola")),
