@@ -92,6 +92,8 @@ async def emit_invoice_for_order(order_id: str, _: UserPublic = Depends(get_curr
     order = await db.orders.find_one({"id": order_id}, PROJECT)
     if not order:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Pedido no encontrado")
+    # Clear previous failed attempts for this order so retries don't pile up.
+    await db.invoices.delete_many({"order_id": order_id, "type": "invoice", "status": "error"})
     record = await emit_and_store(db, order, auto=False)
     if record is None:
         raise HTTPException(

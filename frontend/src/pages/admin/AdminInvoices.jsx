@@ -66,6 +66,20 @@ export default function AdminInvoices() {
     onError: (err) => toast.error(apiError(err, "No se pudo sincronizar con Factus")),
   });
 
+  const retry = useMutation({
+    mutationFn: (orderId) => api.post(`/admin/orders/${orderId}/invoice`),
+    onSuccess: (res) => {
+      if (res.data.status === "emitida") {
+        toast.success(`Factura ${res.data.number || ""} emitida`);
+      } else {
+        toast.error("Sigue con error — revisa el detalle");
+        setDetail(res.data);
+      }
+      qc.invalidateQueries({ queryKey: ["admin-invoices"] });
+    },
+    onError: (err) => toast.error(apiError(err, "No se pudo reintentar")),
+  });
+
   const removeOne = useMutation({
     mutationFn: (id) => api.delete(`/admin/invoices/${id}`),
     onSuccess: () => {
@@ -194,6 +208,11 @@ export default function AdminInvoices() {
                               <Link to={`/invoice/${inv.id}/print`} target="_blank">
                                 <Printer className="h-4 w-4" />
                               </Link>
+                            </Button>
+                          )}
+                          {inv.status !== "emitida" && inv.order_id && (
+                            <Button variant="ghost" size="sm" onClick={() => retry.mutate(inv.order_id)} disabled={retry.isPending} title="Reintentar emisión">
+                              <RefreshCw className={`mr-1 h-4 w-4 ${retry.isPending ? "animate-spin" : ""}`} /> Reintentar
                             </Button>
                           )}
                           <Button variant="ghost" size="icon" title="Ver JSON (envío / respuesta)" onClick={() => setDetail(inv)}>

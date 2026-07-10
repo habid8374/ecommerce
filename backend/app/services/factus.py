@@ -9,7 +9,6 @@ they depend on the merchant's Factus account.
 """
 import asyncio
 import logging
-import time
 
 import requests
 
@@ -436,10 +435,12 @@ def _emit_sync(f: dict, order: dict) -> dict:
     token = _token(f)
     if not token:
         return {"ok": False, "error": "No se pudo autenticar con Factus (revisa credenciales)."}
-    # reference_code must be unique per emission: Factus rejects a repeated
-    # reference with 409 ("factura pendiente por enviar a la DIAN"). Append a
-    # short timestamp so each attempt is a brand-new document.
-    ref = f"{order['id'][:12]}-{int(time.time())}"
+    # reference_code must be STABLE per order (deterministic), not unique per
+    # attempt: DIAN numbering is strictly sequential, so if a bill got created
+    # but its transmission to the DIAN stayed pending, retrying with the SAME
+    # reference lets Factus resume that same bill instead of requesting a new
+    # number (which would 409 "factura pendiente por enviar a la DIAN").
+    ref = order["id"][:20]
     items = _items(order, f)
     payload = {
         "numbering_range_id": int(f.get("numbering_range_id", 0)),
@@ -463,7 +464,7 @@ def _note_sync(f: dict, order: dict, kind: str, reason: str, invoice_number: str
     # Credit/debit notes use their OWN DIAN numbering range (not the invoice's).
     range_key = "numbering_range_id_credit" if kind == "credit" else "numbering_range_id_debit"
     note_range = int(f.get(range_key) or f.get("numbering_range_id", 0))
-    ref = f"{order['id'][:10]}-{kind[:2]}-{int(time.time())}"
+    ref = f"{order['id'][:16]}-{kind[:2]}"
     items = _items(order, f)
     payload = {
         "numbering_range_id": note_range,
