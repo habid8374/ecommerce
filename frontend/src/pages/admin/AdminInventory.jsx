@@ -178,7 +178,7 @@ export default function AdminInventory() {
                         {r.is_service ? "—" : r.stock}
                       </td>
                       <td className="px-4 py-3 text-right text-muted-foreground">{formatCOP(r.cost)}</td>
-                      <td className="px-4 py-3 text-right">{formatCOP(r.cost_value)}</td>
+                      <td className="px-4 py-3 text-right">{r.is_service ? "—" : formatCOP(r.cost_value)}</td>
                       <td className="px-4 py-3 text-center">{r.tax_rate}%</td>
                       <td className="px-4 py-3">
                         {r.is_service ? (

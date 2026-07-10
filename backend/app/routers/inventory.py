@@ -104,11 +104,17 @@ async def export_inventory(_: UserPublic = Depends(get_current_admin)):
     for cell in ws[1]:
         cell.font = Font(bold=True)
     for r in rows:
-        estado = "Servicio" if r["is_service"] else ("Agotado" if r["out"] else ("Bajo" if r["low"] else "OK"))
+        svc = r["is_service"]
+        # Services don't hold stock: leave stock/valuation blank so the sheet
+        # isn't padded with meaningless numbers, and don't repeat "Servicio"
+        # in Estado (the Tipo column already says it).
+        estado = "" if svc else ("Agotado" if r["out"] else ("Bajo" if r["low"] else "OK"))
         ws.append([
-            r["name"], r["sku"], r["category"], "Servicio" if r["is_service"] else "Producto",
-            r["stock"], r["cost"], r["cost_value"], r["price"], r["retail_value"],
-            r["tax_rate"], r["low_stock_threshold"], estado,
+            r["name"], r["sku"], r["category"], "Servicio" if svc else "Producto",
+            "" if svc else r["stock"], r["cost"],
+            "" if svc else r["cost_value"], r["price"],
+            "" if svc else r["retail_value"], r["tax_rate"],
+            "" if svc else r["low_stock_threshold"], estado,
         ])
 
     ws2 = wb.create_sheet("Movimientos")
