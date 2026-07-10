@@ -52,28 +52,38 @@ def _token(f: dict) -> str | None:
 
 
 def _numbering_ranges_sync(f: dict, token: str) -> list[dict]:
-    try:
-        resp = requests.get(
-            f"{f['base_url'].rstrip('/')}/v1/numbering-ranges",
-            headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
-            timeout=20,
-        )
-        if resp.status_code >= 300:
-            return []
-        data = resp.json().get("data") or []
-        out = []
-        for r in data:
-            out.append({
-                "id": r.get("id"),
-                "document": r.get("document") or r.get("document_type") or "",
-                "prefix": r.get("prefix", ""),
-                "from": r.get("from"),
-                "to": r.get("to"),
-                "resolution_number": r.get("resolution_number", ""),
-            })
-        return out
-    except requests.RequestException:
-        return []
+    base = f["base_url"].rstrip("/")
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
+    for path in ("/v1/numbering-ranges", "/v1/numbering-ranges?filter[is_active]=true"):
+        try:
+            resp = requests.get(f"{base}{path}", headers=headers, timeout=20)
+            logger.info("Factus %s -> HTTP %s body=%s", path, resp.status_code, resp.text[:400])
+            if resp.status_code >= 300:
+                continue
+            body = resp.json()
+            data = body.get("data", body)
+            # Handle Laravel pagination: {"data": {"data": [...]}}
+            if isinstance(data, dict):
+                data = data.get("data") or data.get("numbering_ranges") or []
+            if not isinstance(data, list):
+                continue
+            out = []
+            for r in data:
+                if not isinstance(r, dict):
+                    continue
+                out.append({
+                    "id": r.get("id"),
+                    "document": r.get("document") or r.get("document_type") or r.get("name") or "",
+                    "prefix": r.get("prefix", ""),
+                    "from": r.get("from"),
+                    "to": r.get("to"),
+                    "resolution_number": r.get("resolution_number", ""),
+                })
+            if out:
+                return out
+        except (requests.RequestException, ValueError) as exc:
+            logger.warning("Factus numbering-ranges error on %s: %s", path, exc)
+    return []
 
 
 def test_connection_sync(f: dict) -> dict:
