@@ -61,8 +61,8 @@ DEFAULTS = {
         "municipality_code": "08001",  # Barranquilla (DANE)
         "payment_form": "1",           # 1=contado, 2=crédito
         "payment_method_code": "10",   # 10=efectivo (contraentrega), 42=transferencia
-        "customer_tribute_code": "21", # 21=No responsable de IVA
-        "unit_measure_code": "70",     # 70=unidad
+        "customer_tribute_code": "21", # ver catálogo (Probar conexión)
+        "unit_measure_code": "94",     # 94=unidad
         "standard_code": "999",        # 999=estándar de adopción del contribuyente
         "tax_code": "01",              # 01=IVA
     },

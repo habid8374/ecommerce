@@ -30,7 +30,7 @@ export default function AdminSettings() {
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [factusRanges, setFactusRanges] = useState(null);
+  const [factusData, setFactusData] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-settings"],
@@ -225,10 +225,10 @@ export default function AdminSettings() {
                   const { data } = await api.post("/admin/settings/factus/test");
                   if (data.ok) {
                     toast.success(data.message || "Conexión exitosa");
-                    setFactusRanges(data.numbering_ranges || []);
+                    setFactusData(data);
                   } else {
                     toast.error(data.error || "Error de conexión");
-                    setFactusRanges(null);
+                    setFactusData(null);
                   }
                 } catch (err) {
                   toast.error(apiError(err, "No se pudo probar la conexión"));
@@ -243,33 +243,56 @@ export default function AdminSettings() {
             <span className="text-xs text-muted-foreground">Guarda y valida las credenciales.</span>
           </div>
 
-          {factusRanges && (
-            <div className="rounded-lg border bg-muted/40 p-3 text-sm">
-              <p className="mb-2 font-medium">Rangos de numeración disponibles</p>
-              {factusRanges.length === 0 ? (
-                <p className="text-muted-foreground">
-                  No se encontraron rangos. Créalos en tu panel de Factus.
-                </p>
-              ) : (
-                <div className="space-y-1">
-                  {factusRanges.map((r) => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      onClick={() => {
-                        set("factus.numbering_range_id")(r.id);
-                        toast.success(`Rango ${r.id} seleccionado`);
-                      }}
-                      className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left hover:bg-accent"
-                    >
-                      <span>
-                        <b>ID {r.id}</b> · {r.document} {r.prefix ? `(${r.prefix})` : ""}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {form.factus?.numbering_range_id === r.id ? "✓ seleccionado" : "usar"}
-                      </span>
-                    </button>
-                  ))}
+          {factusData && (
+            <div className="space-y-3">
+              {/* Numbering ranges */}
+              <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+                <p className="mb-2 font-medium">Rangos de numeración</p>
+                {(factusData.numbering_ranges || []).length === 0 ? (
+                  <p className="text-muted-foreground">No se encontraron rangos.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {factusData.numbering_ranges.map((r) => (
+                      <button key={r.id} type="button"
+                        onClick={() => { set("factus.numbering_range_id")(r.id); toast.success(`Rango ${r.id} (factura) seleccionado`); }}
+                        className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left hover:bg-accent">
+                        <span><b>ID {r.id}</b> · {r.document} {r.prefix ? `(${r.prefix})` : ""}</span>
+                        <span className="text-xs text-muted-foreground">{form.factus?.numbering_range_id === r.id ? "✓" : "factura"}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Tributes */}
+              {(factusData.tributes || []).length > 0 && (
+                <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+                  <p className="mb-2 font-medium">Tributos del cliente (elige el correcto)</p>
+                  <div className="flex flex-wrap gap-1">
+                    {factusData.tributes.map((t) => (
+                      <button key={t.code} type="button"
+                        onClick={() => { set("factus.customer_tribute_code")(String(t.code)); toast.success(`Tributo ${t.code} seleccionado`); }}
+                        className={`rounded-md border px-2 py-1 text-xs hover:bg-accent ${String(form.factus?.customer_tribute_code) === String(t.code) ? "border-primary bg-primary/10" : ""}`}>
+                        <b>{t.code}</b> {t.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Unit measures */}
+              {(factusData.unit_measures || []).length > 0 && (
+                <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+                  <p className="mb-2 font-medium">Unidades de medida (elige "unidad")</p>
+                  <div className="flex max-h-40 flex-wrap gap-1 overflow-y-auto">
+                    {factusData.unit_measures.map((u) => (
+                      <button key={u.code} type="button"
+                        onClick={() => { set("factus.unit_measure_code")(String(u.code)); toast.success(`Unidad ${u.code} seleccionada`); }}
+                        className={`rounded-md border px-2 py-1 text-xs hover:bg-accent ${String(form.factus?.unit_measure_code) === String(u.code) ? "border-primary bg-primary/10" : ""}`}>
+                        <b>{u.code}</b> {u.name}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

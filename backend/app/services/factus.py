@@ -97,17 +97,51 @@ def _numbering_ranges_sync(f: dict, token: str) -> list[dict]:
     return []
 
 
+def _catalog_sync(f: dict, token: str, path: str) -> list[dict]:
+    base = f["base_url"].rstrip("/")
+    ver = _v(f)
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+    }
+    try:
+        resp = requests.get(f"{base}/{ver}/{path}", headers=headers, timeout=20)
+        logger.info("Factus catalog %s -> HTTP %s body=%s", path, resp.status_code, resp.text[:500])
+        if resp.status_code >= 300:
+            return []
+        data = resp.json().get("data")
+        if isinstance(data, dict):
+            data = data.get("data") or []
+        if not isinstance(data, list):
+            return []
+        out = []
+        for r in data:
+            if isinstance(r, dict):
+                out.append({
+                    "code": r.get("code") if r.get("code") is not None else r.get("id"),
+                    "name": r.get("name") or r.get("description") or r.get("unit") or "",
+                })
+        return out
+    except (requests.RequestException, ValueError):
+        return []
+
+
 def test_connection_sync(f: dict) -> dict:
     if not (f.get("base_url") and f.get("client_id") and f.get("email")):
         return {"ok": False, "error": "Faltan credenciales de Factus."}
     tok, err = _token_detailed(f)
     if not tok:
         return {"ok": False, "error": err or "No se pudo autenticar."}
-    ranges = _numbering_ranges_sync(f, tok)
     return {
         "ok": True,
         "message": "Autenticación con Factus exitosa.",
-        "numbering_ranges": ranges,
+        "numbering_ranges": _numbering_ranges_sync(f, tok),
+        "tributes": _catalog_sync(f, tok, "tributes"),
+        "unit_measures": _catalog_sync(f, tok, "measurement-units")
+        or _catalog_sync(f, tok, "units-measurement")
+        or _catalog_sync(f, tok, "units"),
     }
 
 
