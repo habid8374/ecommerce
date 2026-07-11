@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, Outlet, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { ShoppingCart, Package, LogOut, LayoutDashboard, Search, User } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -51,6 +52,15 @@ export default function StoreLayout() {
   const { user, isAdmin, logout } = useAuth();
   const { count } = useCart();
   const navigate = useNavigate();
+
+  const handleLogout = () => {
+    const name = (user?.name || "").split(" ")[0];
+    logout();
+    toast.success(name ? `¡Hasta pronto, ${name}!` : "¡Hasta pronto!", {
+      description: "Cerraste sesión. Gracias por visitarnos, te esperamos de vuelta pronto. 👋",
+    });
+    navigate("/");
+  };
 
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
@@ -111,7 +121,7 @@ export default function StoreLayout() {
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout}>
+                  <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" /> Cerrar sesión
                   </DropdownMenuItem>
                 </DropdownMenuContent>
