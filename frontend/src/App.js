@@ -15,6 +15,7 @@ import Cart from "@/pages/Cart";
 import Checkout from "@/pages/Checkout";
 import OrderConfirmation from "@/pages/OrderConfirmation";
 import MyOrders from "@/pages/MyOrders";
+import Account from "@/pages/Account";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import OrderPrint from "@/pages/OrderPrint";
@@ -72,6 +73,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <MyOrders />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/account"
+                element={
+                  <ProtectedRoute>
+                    <Account />
                   </ProtectedRoute>
                 }
               />

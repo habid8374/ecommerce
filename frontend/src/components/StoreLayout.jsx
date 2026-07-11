@@ -102,6 +102,9 @@ export default function StoreLayout() {
                   <DropdownMenuItem onClick={() => navigate("/orders")}>
                     <Package className="mr-2 h-4 w-4" /> Mis pedidos
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/account")}>
+                    <User className="mr-2 h-4 w-4" /> Mi cuenta
+                  </DropdownMenuItem>
                   {isAdmin && (
                     <DropdownMenuItem onClick={() => navigate("/admin")}>
                       <LayoutDashboard className="mr-2 h-4 w-4" /> Panel admin

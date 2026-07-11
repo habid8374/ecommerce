@@ -49,9 +49,24 @@ export function AuthProvider({ children }) {
     return data;
   };
 
+  const changeEmail = async (email, password) => {
+    const { data } = await api.post("/auth/change-email", { email, password });
+    setUser(data);
+    return data;
+  };
+
+  const changePassword = async (current_password, new_password) => {
+    await api.post("/auth/change-password", { current_password, new_password });
+  };
+
   const logout = () => {
     tokenStore.clear();
     setUser(null);
+  };
+
+  const deleteAccount = async (password) => {
+    await api.delete("/auth/me", { data: { password } });
+    logout();
   };
 
   return (
@@ -62,6 +77,9 @@ export function AuthProvider({ children }) {
         login,
         register,
         updateProfile,
+        changeEmail,
+        changePassword,
+        deleteAccount,
         logout,
         isAdmin: user?.role === "admin",
       }}

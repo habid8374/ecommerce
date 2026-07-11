@@ -1,5 +1,6 @@
-"""Authentication: register, login, current user."""
+"""Authentication: register, login, current user, account management."""
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, EmailStr, Field
 from pymongo.errors import DuplicateKeyError
 
 from .. import security
@@ -17,6 +18,20 @@ from ..models import (
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+
+class EmailChange(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=6, max_length=128)
+
+
+class AccountDelete(BaseModel):
+    password: str
 
 
 def _full_name(first: str, last: str) -> str:
@@ -74,6 +89,53 @@ async def update_me(body: ProfileUpdate, current: UserPublic = Depends(get_curre
         await db.users.update_one({"id": current.id}, {"$set": changes})
     doc = await db.users.find_one({"id": current.id}, {"_id": 0, "password": 0})
     return UserPublic(**doc)
+
+
+@router.post("/change-email", response_model=UserPublic)
+async def change_email(body: EmailChange, current: UserPublic = Depends(get_current_user)):
+    db = get_db()
+    user = await db.users.find_one({"id": current.id})
+    if not user or not security.verify_password(body.password, user.get("password", "")):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Contraseña incorrecta")
+    new_email = body.email.lower()
+    if new_email != user["email"]:
+        if await db.users.find_one({"email": new_email}, {"_id": 0, "id": 1}):
+            raise HTTPException(status.HTTP_409_CONFLICT, "Ya existe una cuenta con ese correo")
+        await db.users.update_one({"id": current.id}, {"$set": {"email": new_email, "updated_at": _now()}})
+    doc = await db.users.find_one({"id": current.id}, {"_id": 0, "password": 0})
+    return UserPublic(**doc)
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(body: PasswordChange, current: UserPublic = Depends(get_current_user)):
+    db = get_db()
+    user = await db.users.find_one({"id": current.id})
+    if not user or not security.verify_password(body.current_password, user.get("password", "")):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "La contraseña actual es incorrecta")
+    await db.users.update_one(
+        {"id": current.id},
+        {"$set": {"password": security.hash_password(body.new_password), "updated_at": _now()}},
+    )
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_account(body: AccountDelete, current: UserPublic = Depends(get_current_user)):
+    """Delete the customer's own account. Orders are kept (they carry their own
+    customer data for accounting/invoicing); the user's reviews are removed."""
+    db = get_db()
+    user = await db.users.find_one({"id": current.id})
+    if not user or not security.verify_password(body.password, user.get("password", "")):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Contraseña incorrecta")
+    if current.role == Role.admin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Una cuenta de administrador no puede eliminarse aquí.")
+    # Remove the user's reviews and refresh the affected products' ratings.
+    product_ids = await db.reviews.distinct("product_id", {"user_id": current.id})
+    await db.reviews.delete_many({"user_id": current.id})
+    from ..services.reviews import recompute_product_rating
+
+    for pid in product_ids:
+        await recompute_product_rating(db, pid)
+    await db.users.delete_one({"id": current.id})
 
 
 @router.post("/login", response_model=TokenResponse)
