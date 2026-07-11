@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ShoppingCart, ArrowLeft, Minus, Plus, PackageSearch, BadgeCheck } from "lucide-react";
+import { ShoppingCart, ArrowLeft, Minus, Plus, PackageSearch, BadgeCheck, Star } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { formatCOP, formatDate } from "@/lib/format";
@@ -34,6 +34,11 @@ export default function ProductDetail() {
     queryFn: async () => (await api.get(`/products/${product.id}/reviews`)).data,
     enabled: !!product?.id,
   });
+  const { data: pub } = useQuery({
+    queryKey: ["public-settings"],
+    queryFn: async () => (await api.get("/settings/public")).data,
+  });
+  const googleReviewUrl = pub?.company?.google_review_url || "";
 
   if (isLoading) {
     return (
@@ -181,7 +186,19 @@ export default function ProductDetail() {
 
       {/* Reviews */}
       <section id="resenas" className="mt-14 scroll-mt-24">
-        <h2 className="text-xl font-bold">Opiniones de clientes</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-bold">Opiniones de clientes</h2>
+          {googleReviewUrl && (
+            <a
+              href={googleReviewUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg bg-[#4285F4] px-3 py-2 text-sm font-semibold text-white hover:bg-[#3b78e0]"
+            >
+              <Star className="h-4 w-4" fill="#fff" /> Reséñanos en Google
+            </a>
+          )}
+        </div>
         {summary.count === 0 ? (
           <p className="mt-3 text-muted-foreground">
             Aún no hay reseñas. Compra este producto y cuéntanos qué te pareció; tu opinión ayuda a otros clientes.
