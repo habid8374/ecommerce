@@ -148,6 +148,31 @@ async def send_low_stock_alert(product: dict, new_stock: int, threshold: int) ->
     await send_email(to, name, f"⚠️ {title}: {product.get('name', '')}", html)
 
 
+async def send_review_request(order: dict) -> None:
+    """Invite the customer to review their products once the order is delivered."""
+    settings = await get_settings()
+    company = settings.get("company", {})
+    name = company.get("name", "GRAFIBLESS")
+    site = (company.get("site_url") or "").rstrip("/")
+    ref = order["id"][:8]
+    cta = ""
+    if site:
+        cta = (f'<p><a href="{site}/orders" style="display:inline-block;background:#1e5eff;'
+               f'color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">'
+               f'Calificar mis productos</a></p>')
+    else:
+        cta = "<p>Ingresa a tu cuenta y entra a <b>Mis pedidos</b> para calificar.</p>"
+    body = f"""
+      <p>Hola {order.get('customer_name') or ''}, ¡esperamos que hayas recibido tu pedido!</p>
+      <p>Tu opinión nos ayuda muchísimo. ¿Nos cuentas qué te pareció? Puedes dejar tus
+      estrellas, una reseña y hasta <b>fotos</b> de tu producto.</p>
+      {cta}
+      <p style="color:#888;font-size:12px">Pedido #{ref}</p>
+    """
+    html = _layout(name, "¿Qué te pareció tu compra?", body)
+    await send_email(order.get("customer_email"), order.get("customer_name"), f"Califica tu compra · Pedido #{ref}", html)
+
+
 async def send_status_changed(order: dict, new_status: str) -> None:
     settings = await get_settings()
     company = settings.get("company", {}).get("name", "GRAFIBLESS")

@@ -1,22 +1,35 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Package, Trash2 } from "lucide-react";
+import { Package, Trash2, Star } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import { useConfirm } from "@/context/ConfirmContext";
 import { formatCOP, formatDate, ORDER_STATUS } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import ReviewDialog from "@/components/ReviewDialog";
 
 export default function MyOrders() {
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const [review, setReview] = useState(null); // { product, orderId }
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["my-orders"],
     queryFn: async () => (await api.get("/orders/mine")).data,
     refetchInterval: 15000, // live status updates
   });
+  const { data: reviewed = [] } = useQuery({
+    queryKey: ["my-reviews"],
+    queryFn: async () => (await api.get("/reviews/mine")).data,
+  });
+  const { data: pub } = useQuery({
+    queryKey: ["public-settings"],
+    queryFn: async () => (await api.get("/settings/public")).data,
+  });
+  const googleUrl = pub?.company?.google_review_url || "";
+  const isReviewed = (orderId, productId) => reviewed.includes(`${orderId}:${productId}`);
 
   const deleteOrder = useMutation({
     mutationFn: (id) => api.delete(`/orders/${id}`),
@@ -57,7 +70,8 @@ export default function MyOrders() {
           const status = ORDER_STATUS[order.status];
           return (
             <Card key={order.id}>
-              <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <CardContent className="p-4">
+               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-sm font-medium">#{order.id.slice(0, 8)}</span>
@@ -98,11 +112,46 @@ export default function MyOrders() {
                     </Button>
                   </div>
                 </div>
+               </div>
+
+               {order.payment_status === "approved" && (
+                 <div className="mt-4 border-t pt-3">
+                   <p className="mb-2 text-xs font-medium text-muted-foreground">Califica tus productos</p>
+                   <div className="flex flex-wrap gap-2">
+                     {order.items.map((it) =>
+                       isReviewed(order.id, it.product_id) ? (
+                         <span key={it.product_id} className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs text-muted-foreground">
+                           <Star className="h-3.5 w-3.5" fill="#f5b301" stroke="#f5b301" /> {it.name}
+                         </span>
+                       ) : (
+                         <Button
+                           key={it.product_id}
+                           variant="outline"
+                           size="sm"
+                           className="h-8"
+                           onClick={() => setReview({ product: { id: it.product_id, name: it.name }, orderId: order.id })}
+                           data-testid="rate-product"
+                         >
+                           <Star className="mr-1 h-4 w-4" /> {it.name}
+                         </Button>
+                       )
+                     )}
+                   </div>
+                 </div>
+               )}
               </CardContent>
             </Card>
           );
         })}
       </div>
+
+      <ReviewDialog
+        open={!!review}
+        onClose={() => setReview(null)}
+        product={review?.product}
+        orderId={review?.orderId}
+        googleUrl={googleUrl}
+      />
     </div>
   );
 }

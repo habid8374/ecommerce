@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ShoppingCart, ArrowLeft, Minus, Plus, PackageSearch } from "lucide-react";
+import { ShoppingCart, ArrowLeft, Minus, Plus, PackageSearch, BadgeCheck } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
-import { formatCOP } from "@/lib/format";
+import { formatCOP, formatDate } from "@/lib/format";
 import { useCart } from "@/context/CartContext";
+import { Stars } from "@/components/StarRating";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,6 +26,10 @@ export default function ProductDetail() {
   const { data: product, isLoading, isError } = useQuery({
     queryKey: ["product", id],
     queryFn: async () => (await api.get(`/products/${id}`)).data,
+  });
+  const { data: reviews } = useQuery({
+    queryKey: ["product-reviews", id],
+    queryFn: async () => (await api.get(`/products/${id}/reviews`)).data,
   });
 
   if (isLoading) {
@@ -52,6 +57,36 @@ export default function ProductDetail() {
   }
 
   const outOfStock = product.stock <= 0;
+  const summary = reviews?.summary || { avg: 0, count: 0, distribution: {} };
+  const reviewItems = reviews?.items || [];
+
+  // SEO: structured data so Google can show ⭐ stars in the results.
+  const ld = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: product.description || undefined,
+    image: product.images?.[0] || undefined,
+    offers: {
+      "@type": "Offer",
+      price: product.price,
+      priceCurrency: "COP",
+      availability: outOfStock ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
+    },
+  };
+  if (summary.count > 0) {
+    ld.aggregateRating = {
+      "@type": "AggregateRating",
+      ratingValue: summary.avg,
+      reviewCount: summary.count,
+    };
+    ld.review = reviewItems.slice(0, 10).map((r) => ({
+      "@type": "Review",
+      author: { "@type": "Person", name: r.customer_name },
+      reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5 },
+      reviewBody: r.comment || undefined,
+    }));
+  }
 
   return (
     <div>
@@ -74,6 +109,13 @@ export default function ProductDetail() {
             {product.category}
           </Badge>
           <h1 className="text-3xl font-bold">{product.name}</h1>
+          {product.rating_count > 0 && (
+            <a href="#resenas" className="mt-2 inline-flex items-center gap-2 text-sm">
+              <Stars value={product.rating_avg} size={16} />
+              <span className="font-medium">{product.rating_avg.toFixed(1)}</span>
+              <span className="text-muted-foreground">({product.rating_count} reseñas)</span>
+            </a>
+          )}
           <p className="mt-4 text-3xl font-bold">{formatCOP(product.price)}</p>
           <p className="mt-4 whitespace-pre-line text-muted-foreground">
             {product.description || "Sin descripción."}
@@ -133,6 +175,76 @@ export default function ProductDetail() {
           </div>
         </div>
       </div>
+
+      {/* Reviews */}
+      <section id="resenas" className="mt-14 scroll-mt-24">
+        <h2 className="text-xl font-bold">Opiniones de clientes</h2>
+        {summary.count === 0 ? (
+          <p className="mt-3 text-muted-foreground">
+            Aún no hay reseñas. Compra este producto y cuéntanos qué te pareció; tu opinión ayuda a otros clientes.
+          </p>
+        ) : (
+          <>
+            <div className="mt-4 flex flex-col gap-6 rounded-xl border p-5 sm:flex-row sm:items-center">
+              <div className="text-center">
+                <div className="text-4xl font-bold">{summary.avg.toFixed(1)}</div>
+                <Stars value={summary.avg} size={18} />
+                <div className="mt-1 text-xs text-muted-foreground">{summary.count} reseñas</div>
+              </div>
+              <div className="flex-1 space-y-1.5">
+                {[5, 4, 3, 2, 1].map((s) => {
+                  const n = summary.distribution[s] || 0;
+                  const pct = summary.count ? Math.round((n / summary.count) * 100) : 0;
+                  return (
+                    <div key={s} className="flex items-center gap-2 text-xs">
+                      <span className="w-6 text-muted-foreground">{s}★</span>
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                        <div className="h-full rounded-full bg-[#f5b301]" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="w-8 text-right text-muted-foreground">{n}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-5">
+              {reviewItems.map((r) => (
+                <div key={r.id} className="border-b pb-5 last:border-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{r.customer_name}</span>
+                    {r.verified && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                        <BadgeCheck className="h-3.5 w-3.5" /> Compra verificada
+                      </span>
+                    )}
+                    <span className="ml-auto text-xs text-muted-foreground">{formatDate(r.created_at)}</span>
+                  </div>
+                  <div className="mt-1"><Stars value={r.rating} size={15} /></div>
+                  {r.comment && <p className="mt-2 text-sm">{r.comment}</p>}
+                  {r.photos?.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {r.photos.map((src, i) => (
+                        <a key={i} href={src} target="_blank" rel="noreferrer" className="h-20 w-20 overflow-hidden rounded-lg border">
+                          <img src={src} alt="Foto de reseña" className="h-full w-full object-cover" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                  {r.admin_reply && (
+                    <div className="mt-3 rounded-lg bg-muted/60 p-3 text-sm">
+                      <p className="text-xs font-semibold text-muted-foreground">Respuesta de la tienda</p>
+                      <p className="mt-0.5">{r.admin_reply}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }} />
     </div>
   );
 }

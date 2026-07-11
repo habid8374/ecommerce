@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatCOP } from "@/lib/format";
 import { useCart } from "@/context/CartContext";
+import { Stars } from "@/components/StarRating";
 
 const PLACEHOLDER =
   "data:image/svg+xml;utf8," +
@@ -38,6 +39,12 @@ export default function ProductCard({ product }) {
             {product.name}
           </h3>
         </Link>
+        {product.rating_count > 0 && (
+          <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+            <Stars value={product.rating_avg} size={13} />
+            <span>({product.rating_count})</span>
+          </div>
+        )}
         <p className="mt-2 text-lg font-bold">{formatCOP(product.price)}</p>
         {outOfStock ? (
           <p className="mt-1 text-sm text-destructive">Agotado</p>

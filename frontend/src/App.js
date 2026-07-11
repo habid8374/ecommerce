@@ -31,6 +31,7 @@ import AdminCategories from "@/pages/admin/AdminCategories";
 import AdminInventory from "@/pages/admin/AdminInventory";
 import AdminCustomers from "@/pages/admin/AdminCustomers";
 import AdminInvoices from "@/pages/admin/AdminInvoices";
+import AdminReviews from "@/pages/admin/AdminReviews";
 import AdminSettings from "@/pages/admin/AdminSettings";
 
 function App() {
@@ -121,6 +122,7 @@ function App() {
               <Route path="/admin/inventory" element={<AdminInventory />} />
               <Route path="/admin/customers" element={<AdminCustomers />} />
               <Route path="/admin/invoices" element={<AdminInvoices />} />
+              <Route path="/admin/reviews" element={<AdminReviews />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
             </Route>
           </Routes>

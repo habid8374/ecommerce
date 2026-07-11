@@ -202,6 +202,18 @@ export default function AdminSettings() {
             onChange={inp("company.whatsapp")}
             placeholder="3158380306"
           />
+          <Field
+            label="URL del sitio (para enlaces en correos)"
+            value={form.company.site_url ?? ""}
+            onChange={inp("company.site_url")}
+            placeholder="https://tu-tienda.up.railway.app"
+          />
+          <Field
+            label="Enlace de reseña en Google (opcional)"
+            value={form.company.google_review_url ?? ""}
+            onChange={inp("company.google_review_url")}
+            placeholder="https://g.page/r/…/review"
+          />
         </CardContent>
       </Card>
 

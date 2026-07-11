@@ -69,11 +69,14 @@ async def update_order_status(
     if result.matched_count == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Pedido no encontrado")
     order = await db.orders.find_one({"id": order_id}, PROJECT)
-    # Notify the customer of the new status (best-effort).
+    # Notify the customer of the new status (best-effort). On delivery, also
+    # invite them to review their products.
     try:
-        from ..services.email import send_status_changed
+        from ..services.email import send_review_request, send_status_changed
 
         await send_status_changed(order, body.status.value)
+        if body.status.value == OrderStatus.delivered.value:
+            await send_review_request(order)
     except Exception:  # noqa: BLE001
         pass
     return Order(**order)

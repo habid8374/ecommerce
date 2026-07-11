@@ -43,6 +43,8 @@ DEFAULTS = {
         "phone": "",
         "email": "",
         "whatsapp": "3158380306",  # floating WhatsApp button (editable in Ajustes)
+        "site_url": "",            # public site URL, used in emails (e.g. review links)
+        "google_review_url": "",   # "Escribe una reseña" link of the Google Business Profile
     },
     # Factus electronic invoicing (DIAN). Two environments (test/production)
     # with separate credentials, like Wompi. Filled in from the admin panel.

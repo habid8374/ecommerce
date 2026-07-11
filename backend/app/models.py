@@ -178,8 +178,49 @@ class Product(ProductBase):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=_uuid)
     slug: str = ""
+    rating_avg: float = 0.0   # average of approved reviews
+    rating_count: int = 0     # number of approved reviews
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
+
+
+# --------------------------------------------------------------------------
+# Reviews (opiniones)
+# --------------------------------------------------------------------------
+class ReviewStatus(str, Enum):
+    pending = "pending"    # awaiting moderation
+    approved = "approved"
+    hidden = "hidden"
+
+
+class Review(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=_uuid)
+    product_id: str
+    product_name: str = ""
+    user_id: str = ""
+    order_id: str = ""
+    customer_name: str = ""
+    rating: int = Field(ge=1, le=5)
+    comment: str = Field(default="", max_length=2000)
+    photos: List[str] = Field(default_factory=list)  # image data URIs
+    verified: bool = True     # only real buyers can review
+    status: str = ReviewStatus.pending.value
+    admin_reply: str = ""
+    created_at: datetime = Field(default_factory=_now)
+
+
+class ReviewCreate(BaseModel):
+    product_id: str
+    order_id: str
+    rating: int = Field(ge=1, le=5)
+    comment: str = Field(default="", max_length=2000)
+    photos: List[str] = Field(default_factory=list, max_length=5)
+
+
+class ReviewModerate(BaseModel):
+    status: Optional[str] = None       # approved | hidden | pending
+    admin_reply: Optional[str] = None
 
 
 # --------------------------------------------------------------------------

@@ -11,6 +11,7 @@ import {
   Menu,
   FileText,
   Boxes,
+  Star,
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,7 @@ const GROUPS = [
     items: [
       { to: "/admin/orders", label: "Pedidos", icon: ShoppingBag },
       { to: "/admin/invoices", label: "Facturación", icon: FileText },
+      { to: "/admin/reviews", label: "Reseñas", icon: Star },
       { to: "/admin/customers", label: "Clientes", icon: Users },
     ],
   },
