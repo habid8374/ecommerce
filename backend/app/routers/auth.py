@@ -6,6 +6,7 @@ from pymongo.errors import DuplicateKeyError
 from .. import security
 from ..database import get_db
 from ..deps import get_current_user
+from ..ratelimit import rate_limit
 from ..models import (
     ProfileUpdate,
     Role,
@@ -38,7 +39,12 @@ def _full_name(first: str, last: str) -> str:
     return f"{first.strip()} {last.strip()}".strip()
 
 
-@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register",
+    response_model=TokenResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit(10, 60))],
+)
 async def register(body: UserRegister):
     db = get_db()
     email = body.email.lower()
@@ -91,7 +97,11 @@ async def update_me(body: ProfileUpdate, current: UserPublic = Depends(get_curre
     return UserPublic(**doc)
 
 
-@router.post("/change-email", response_model=UserPublic)
+@router.post(
+    "/change-email",
+    response_model=UserPublic,
+    dependencies=[Depends(rate_limit(6, 60))],
+)
 async def change_email(body: EmailChange, current: UserPublic = Depends(get_current_user)):
     db = get_db()
     user = await db.users.find_one({"id": current.id})
@@ -106,7 +116,11 @@ async def change_email(body: EmailChange, current: UserPublic = Depends(get_curr
     return UserPublic(**doc)
 
 
-@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/change-password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(rate_limit(6, 60))],
+)
 async def change_password(body: PasswordChange, current: UserPublic = Depends(get_current_user)):
     db = get_db()
     user = await db.users.find_one({"id": current.id})
@@ -118,7 +132,11 @@ async def change_password(body: PasswordChange, current: UserPublic = Depends(ge
     )
 
 
-@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/me",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(rate_limit(6, 60))],
+)
 async def delete_account(body: AccountDelete, current: UserPublic = Depends(get_current_user)):
     """Delete the customer's own account. Orders are kept (they carry their own
     customer data for accounting/invoicing); the user's reviews are removed."""
@@ -138,7 +156,11 @@ async def delete_account(body: AccountDelete, current: UserPublic = Depends(get_
     await db.users.delete_one({"id": current.id})
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    dependencies=[Depends(rate_limit(10, 60))],
+)
 async def login(body: UserLogin):
     db = get_db()
     user = await db.users.find_one({"email": body.email.lower()})

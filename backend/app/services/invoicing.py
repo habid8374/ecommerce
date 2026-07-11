@@ -1,6 +1,7 @@
 """Orchestrates Factus emission + persistence in the `invoices` collection."""
 import json
 import logging
+import re
 
 from ..models import _now, _uuid
 from . import factus
@@ -98,8 +99,9 @@ async def sync_from_factus(db) -> dict:
         order_id = ""
         ref = (b.get("reference_code") or "").split("-")[0]
         if ref:
+            # Escape the value before using it in a regex (avoid injection).
             match = await db.orders.find_one(
-                {"id": {"$regex": f"^{ref}"}}, {"_id": 0, "id": 1}
+                {"id": {"$regex": f"^{re.escape(ref)}"}}, {"_id": 0, "id": 1}
             )
             if match:
                 order_id = match["id"]

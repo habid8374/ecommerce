@@ -244,7 +244,14 @@ export default function ProductDetail() {
         )}
       </section>
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          // Escape "<" so user text (e.g. a review with "</script>") can't break
+          // out of the JSON-LD block (stored XSS defense).
+          __html: JSON.stringify(ld).replace(/</g, "\\u003c"),
+        }}
+      />
     </div>
   );
 }

@@ -22,10 +22,17 @@ MONGO_URL = _get("MONGO_URL", "mongodb://localhost:27017")
 DB_NAME = _get("DB_NAME", "ecommerce")
 
 # --- Security -------------------------------------------------------------
-# NOTE: JWT_SECRET must be set to a long random value in production.
-JWT_SECRET = _get("JWT_SECRET", "dev-insecure-change-me")
+# NOTE: JWT_SECRET must be set to a long random value in production. When left
+# at the default, a strong secret is generated and persisted in the DB at
+# startup (see security.resolve_secret) so tokens survive restarts.
+_DEFAULT_JWT_SECRET = "dev-insecure-change-me"
+JWT_SECRET = _get("JWT_SECRET", _DEFAULT_JWT_SECRET)
+JWT_SECRET_IS_DEFAULT = JWT_SECRET == _DEFAULT_JWT_SECRET
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(_get("ACCESS_TOKEN_EXPIRE_MINUTES", "10080") or 10080)  # 7 days
+
+# Reject request bodies larger than this (bytes) to avoid memory abuse (DoS).
+MAX_BODY_BYTES = int(_get("MAX_BODY_BYTES", str(15 * 1024 * 1024)) or 15 * 1024 * 1024)
 
 # Bootstrap admin: if set, an admin user is (re)ensured on startup.
 ADMIN_EMAIL = _get("ADMIN_EMAIL", "admin@ecommerce.com")
@@ -38,6 +45,9 @@ RESEED_PRODUCTS = _get("RESEED_PRODUCTS", "").lower() in ("true", "1", "yes")
 
 # --- CORS -----------------------------------------------------------------
 CORS_ORIGINS = [o for o in _get("CORS_ORIGINS", "*").split(",") if o] or ["*"]
+# Auth uses Bearer tokens (Authorization header), not cookies, so credentials
+# are only allowed when the origins are explicitly whitelisted (never with "*").
+CORS_ALLOW_CREDENTIALS = CORS_ORIGINS != ["*"]
 
 # --- Wompi payments -------------------------------------------------------
 WOMPI_PUBLIC_KEY = _get("WOMPI_PUBLIC_KEY")
