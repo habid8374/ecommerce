@@ -27,9 +27,12 @@ export default function ProductDetail() {
     queryKey: ["product", id],
     queryFn: async () => (await api.get(`/products/${id}`)).data,
   });
+  // Reviews are stored by the product's real id (the URL uses the slug), so
+  // query them with product.id once the product has loaded.
   const { data: reviews } = useQuery({
-    queryKey: ["product-reviews", id],
-    queryFn: async () => (await api.get(`/products/${id}/reviews`)).data,
+    queryKey: ["product-reviews", product?.id],
+    queryFn: async () => (await api.get(`/products/${product.id}/reviews`)).data,
+    enabled: !!product?.id,
   });
 
   if (isLoading) {

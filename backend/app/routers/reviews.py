@@ -76,10 +76,17 @@ async def create_review(body: ReviewCreate, user: UserPublic = Depends(get_curre
 
 @router.get("/products/{product_id}/reviews")
 async def product_reviews(product_id: str):
-    """Public: approved reviews + rating summary for a product."""
+    """Public: approved reviews + rating summary for a product.
+
+    Accepts either the product id or its slug (reviews are stored by real id).
+    """
     db = get_db()
+    prod = await db.products.find_one(
+        {"$or": [{"id": product_id}, {"slug": product_id}]}, {"_id": 0, "id": 1}
+    )
+    real_id = prod["id"] if prod else product_id
     docs = await db.reviews.find(
-        {"product_id": product_id, "status": "approved"}, PROJECT
+        {"product_id": real_id, "status": "approved"}, PROJECT
     ).sort("created_at", -1).to_list(500)
     dist = {i: 0 for i in range(1, 6)}
     total = 0
