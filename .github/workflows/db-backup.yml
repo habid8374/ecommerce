@@ -1,0 +1,83 @@
+name: DB · Respaldo diario a Cloudflare R2
+
+# Respalda MongoDB Atlas todas las noches y lo sube a un bucket de Cloudflare R2.
+# Corre por fuera de la app (no depende de Railway) y conserva 30 días de historial.
+#
+# Requiere estos SECRETOS en GitHub → Settings → Secrets and variables → Actions:
+#   MONGO_URL             cadena de conexión de Atlas (mongodb+srv://...)
+#   R2_BUCKET             nombre del bucket de R2 (ej: grafibless-backups)
+#   R2_ENDPOINT           https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+#   R2_ACCESS_KEY_ID      Access Key ID del token de API de R2
+#   R2_SECRET_ACCESS_KEY  Secret Access Key del token de API de R2
+# (nunca se escriben en el repo; solo se leen como secretos en tiempo de ejecución.)
+
+on:
+  schedule:
+    - cron: "0 7 * * *"   # 07:00 UTC = 02:00 a.m. hora Colombia (UTC-5)
+  workflow_dispatch:       # permite ejecutarlo manualmente desde la pestaña Actions
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: mongodump → R2
+    runs-on: ubuntu-latest
+    env:
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      # Cloudflare R2 rechaza los checksums nuevos que el AWS CLI v2 agrega por
+      # defecto; se piden solo cuando el servicio los requiera.
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+    steps:
+      - name: Validar secretos
+        env:
+          MONGO_URL: ${{ secrets.MONGO_URL }}
+        run: |
+          for v in MONGO_URL R2_BUCKET R2_ENDPOINT AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do
+            if [ -z "${!v}" ]; then echo "::error::Falta el secreto $v"; exit 1; fi
+          done
+
+      - name: Instalar MongoDB Database Tools
+        run: |
+          set -euo pipefail
+          VER=100.10.0
+          curl -sSLo mdt.tgz "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-${VER}.tgz"
+          mkdir -p "$HOME/mdt"
+          tar xzf mdt.tgz -C "$HOME/mdt" --strip-components=1
+          echo "$HOME/mdt/bin" >> "$GITHUB_PATH"
+
+      - name: Crear respaldo (mongodump)
+        env:
+          MONGO_URL: ${{ secrets.MONGO_URL }}
+        run: |
+          set -euo pipefail
+          STAMP=$(date -u +%Y%m%d-%H%M%S)
+          FILE="grafibless-${STAMP}.archive.gz"
+          echo "FILE=$FILE" >> "$GITHUB_ENV"
+          mongodump --uri="$MONGO_URL" --archive="$FILE" --gzip
+          ls -lh "$FILE"
+
+      - name: Subir a Cloudflare R2
+        run: |
+          set -euo pipefail
+          aws s3 cp "$FILE" "s3://$R2_BUCKET/backups/$FILE" --endpoint-url "$R2_ENDPOINT"
+          echo "Respaldo subido: backups/$FILE"
+
+      - name: Eliminar respaldos con más de 30 días
+        run: |
+          set -euo pipefail
+          CUTOFF=$(date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%S)
+          aws s3api list-objects-v2 --bucket "$R2_BUCKET" --prefix "backups/" \
+            --endpoint-url "$R2_ENDPOINT" --output json > list.json || echo '{}' > list.json
+          COUNT=0
+          for key in $(jq -r --arg c "$CUTOFF" '.Contents[]? | select(.LastModified < $c) | .Key' list.json); do
+            aws s3 rm "s3://$R2_BUCKET/$key" --endpoint-url "$R2_ENDPOINT"
+            COUNT=$((COUNT + 1))
+          done
+          echo "Eliminados $COUNT respaldo(s) con más de 30 días."
