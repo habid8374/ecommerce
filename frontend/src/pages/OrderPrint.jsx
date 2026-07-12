@@ -27,8 +27,8 @@ export default function OrderPrint() {
   const status = ORDER_STATUS[order.status];
 
   return (
-    <div className="min-h-screen bg-neutral-100 py-8 print:bg-white print:py-0">
-      <style>{`@media print { .no-print { display: none !important; } @page { margin: 14mm; } }`}</style>
+    <div className="min-h-screen bg-neutral-100 py-8 print:min-h-0 print:bg-white print:py-0">
+      <style>{`@media print { html, body { height:auto !important } .no-print { display: none !important; } @page { margin: 14mm; } }`}</style>
 
       {/* Toolbar (hidden when printing) */}
       <div className="no-print mx-auto mb-4 flex max-w-[820px] items-center justify-between px-4">
@@ -41,9 +41,9 @@ export default function OrderPrint() {
       </div>
 
       {/* Document */}
-      <div className="mx-auto max-w-[820px] bg-white p-10 shadow-sm print:max-w-none print:p-0 print:shadow-none">
+      <div className="mx-auto max-w-[820px] bg-white p-5 shadow-sm sm:p-10 print:max-w-none print:p-0 print:shadow-none">
         {/* Header */}
-        <div className="flex items-start justify-between border-b pb-6">
+        <div className="flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-start sm:justify-between print:flex-row print:items-start print:justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo_grafibless.jpg" alt="GRAFIBLESS" className="h-11 w-auto rounded-lg" />
             <div>
@@ -53,7 +53,7 @@ export default function OrderPrint() {
               <p className="text-xs text-muted-foreground">Impresión DTF & Estampados</p>
             </div>
           </div>
-          <div className="text-right text-xs text-muted-foreground">
+          <div className="text-xs text-muted-foreground sm:text-right print:text-right">
             {company.name && <p className="font-medium text-foreground">{company.name}</p>}
             {company.nit && <p>NIT: {company.nit}</p>}
             {company.address && <p>{company.address}</p>}
@@ -63,12 +63,12 @@ export default function OrderPrint() {
         </div>
 
         {/* Title */}
-        <div className="mt-6 flex items-start justify-between">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between print:flex-row print:items-start print:justify-between">
           <div>
             <h1 className="text-2xl font-bold">Orden de compra</h1>
             <p className="text-sm text-muted-foreground">Comprobante de venta</p>
           </div>
-          <div className="text-right text-sm">
+          <div className="text-sm sm:text-right print:text-right">
             <p><span className="text-muted-foreground">N°:</span> <span className="font-mono font-semibold">#{order.id.slice(0, 8)}</span></p>
             <p><span className="text-muted-foreground">Fecha:</span> {formatDate(order.created_at)}</p>
             <p>

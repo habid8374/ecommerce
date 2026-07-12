@@ -69,8 +69,8 @@ export default function InvoicePrint() {
     : "";
 
   return (
-    <div className="min-h-screen bg-neutral-100 py-8 print:bg-white print:py-0">
-      <style>{`@media print { .no-print { display:none !important } @page { margin: 12mm } }`}</style>
+    <div className="min-h-screen bg-neutral-100 py-8 print:min-h-0 print:bg-white print:py-0">
+      <style>{`@media print { html, body { height:auto !important } .no-print { display:none !important } @page { margin: 12mm } }`}</style>
 
       <div className="no-print mx-auto mb-4 flex max-w-[820px] items-center justify-between px-4">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
@@ -81,9 +81,9 @@ export default function InvoicePrint() {
         </Button>
       </div>
 
-      <div className="mx-auto max-w-[820px] bg-white p-10 text-[13px] shadow-sm print:p-0 print:shadow-none">
+      <div className="mx-auto max-w-[820px] bg-white p-5 text-[13px] shadow-sm sm:p-10 print:p-0 print:shadow-none">
         {/* Header */}
-        <div className="flex items-start justify-between border-b pb-4">
+        <div className="flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-start sm:justify-between print:flex-row print:items-start print:justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo_grafibless.jpg" alt="GRAFIBLESS" className="h-11 w-auto rounded-lg" />
             <div>
@@ -98,7 +98,7 @@ export default function InvoicePrint() {
               )}
             </div>
           </div>
-          <div className="rounded-lg border p-3 text-right">
+          <div className="shrink-0 rounded-lg border p-3 sm:text-right print:text-right">
             <p className="text-sm font-bold uppercase">{TYPE_TITLE[inv.type] || "Documento"}</p>
             <p className="font-mono text-lg font-bold">{number || "—"}</p>
             <p className="text-xs text-muted-foreground">Fecha: {formatDate(inv.created_at)}</p>
@@ -140,7 +140,7 @@ export default function InvoicePrint() {
         </table>
 
         {/* QR + CUFE (left) and Totals (right) */}
-        <div className="mt-6 flex items-start justify-between gap-4">
+        <div className="mt-6 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between print:flex-row print:items-start print:justify-between">
           <div className="flex items-start gap-3">
             <div className="flex flex-col items-center">
               {qrImg ? (
@@ -163,7 +163,7 @@ export default function InvoicePrint() {
               )}
             </div>
           </div>
-          <div className="w-52 shrink-0 space-y-1">
+          <div className="w-full shrink-0 space-y-1 sm:w-52 print:w-52">
             <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCOP(subtotal)}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Envío</span><span>{shippingCost === 0 ? "—" : formatCOP(shippingCost)}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Base gravable</span><span>{formatCOP(subtotal + shippingCost)}</span></div>
