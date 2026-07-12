@@ -145,14 +145,62 @@ export default function AdminInvoices() {
       removeImported.mutate();
   };
 
+  // Action buttons shared by the desktop table and the mobile card list.
+  const renderActions = (inv) => (
+    <div className="flex flex-wrap items-center justify-end gap-1">
+      {inv.status === "emitida" && (
+        <>
+          <Button asChild variant="ghost" size="icon" title="Representación gráfica (hoja)">
+            <Link to={`/invoice/${inv.id}/print`} target="_blank">
+              <Printer className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="icon" title="Tirilla (tiquete 80mm)">
+            <Link to={`/invoice/${inv.id}/ticket`} target="_blank">
+              <Receipt className="h-4 w-4" />
+            </Link>
+          </Button>
+        </>
+      )}
+      {inv.status !== "emitida" && inv.order_id && (
+        <Button variant="ghost" size="sm" onClick={() => retry.mutate(inv.order_id)} disabled={retry.isPending} title="Reintentar emisión">
+          <RefreshCw className={`mr-1 h-4 w-4 ${retry.isPending ? "animate-spin" : ""}`} /> Reintentar
+        </Button>
+      )}
+      <Button variant="ghost" size="icon" title="Ver JSON (envío / respuesta)" onClick={() => setDetail(inv)}>
+        <Code className="h-4 w-4" />
+      </Button>
+      {inv.public_url && (
+        <Button asChild variant="ghost" size="icon" title="Ver PDF">
+          <a href={inv.public_url} target="_blank" rel="noreferrer">
+            <ExternalLink className="h-4 w-4" />
+          </a>
+        </Button>
+      )}
+      {inv.type === "invoice" && inv.status === "emitida" && !inv.imported && (
+        <>
+          <Button variant="ghost" size="sm" onClick={() => setNote({ invoice: inv, kind: "credit", reason: "" })} title="Nota crédito">
+            <FileMinus className="mr-1 h-4 w-4" /> Crédito
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setNote({ invoice: inv, kind: "debit", reason: "" })} title="Nota débito">
+            <FilePlus className="mr-1 h-4 w-4" /> Débito
+          </Button>
+        </>
+      )}
+      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" title="Eliminar del sistema" onClick={() => askRemoveOne(inv)}>
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between gap-2">
+      <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
-          <FileText className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">Facturación electrónica</h1>
+          <FileText className="h-6 w-6 shrink-0" />
+          <h1 className="text-xl font-bold sm:text-2xl">Facturación electrónica</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {hasImported && (
             <Button variant="outline" size="sm" onClick={askRemoveImported} disabled={removeImported.isPending} className="text-destructive hover:text-destructive" data-testid="delete-imported">
               <Trash2 className="mr-2 h-4 w-4" />
@@ -185,99 +233,94 @@ export default function AdminInvoices() {
           Aún no hay documentos emitidos. Al aprobarse un pago (con Factus configurado) aparecerán aquí.
         </p>
       ) : (
-        <Card>
-          <CardContent className="overflow-x-auto p-0">
-            <table className="w-full min-w-[760px] text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                  <th className="px-4 py-3">Fecha</th>
-                  <th className="px-4 py-3">Tipo</th>
-                  <th className="px-4 py-3">N°</th>
-                  <th className="px-4 py-3">Cliente</th>
-                  <th className="px-4 py-3 text-right">Total</th>
-                  <th className="px-4 py-3">Estado</th>
-                  <th className="px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {invoices.map((inv) => {
-                  const t = TYPE_LABEL[inv.type] || { label: inv.type, className: "" };
-                  return (
-                    <tr key={inv.id} className="hover:bg-accent/40">
-                      <td className="px-4 py-3 text-muted-foreground">{formatDate(inv.created_at)}</td>
-                      <td className="px-4 py-3">
-                        <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${t.className}`}>
-                          {t.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-mono">{inv.number || "—"}</td>
-                      <td className="px-4 py-3">
-                        <p className="truncate">{inv.customer_name}</p>
-                        <p className="text-xs text-muted-foreground">{inv.doc_number}</p>
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold">{formatCOP(inv.total)}</td>
-                      <td className="px-4 py-3">
-                        {inv.status === "emitida" ? (
-                          <span className="text-emerald-600">Emitida</span>
-                        ) : (
-                          <button className="text-red-600 underline" onClick={() => setDetail(inv)} title={inv.error}>
-                            Error
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
-                          {inv.status === "emitida" && (
-                            <>
-                              <Button asChild variant="ghost" size="icon" title="Representación gráfica (hoja)">
-                                <Link to={`/invoice/${inv.id}/print`} target="_blank">
-                                  <Printer className="h-4 w-4" />
-                                </Link>
-                              </Button>
-                              <Button asChild variant="ghost" size="icon" title="Tirilla (tiquete 80mm)">
-                                <Link to={`/invoice/${inv.id}/ticket`} target="_blank">
-                                  <Receipt className="h-4 w-4" />
-                                </Link>
-                              </Button>
-                            </>
+        <>
+          {/* Desktop: table */}
+          <Card className="hidden md:block">
+            <CardContent className="overflow-x-auto p-0">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs uppercase text-muted-foreground">
+                    <th className="px-4 py-3">Fecha</th>
+                    <th className="px-4 py-3">Tipo</th>
+                    <th className="px-4 py-3">N°</th>
+                    <th className="px-4 py-3">Cliente</th>
+                    <th className="px-4 py-3 text-right">Total</th>
+                    <th className="px-4 py-3">Estado</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {invoices.map((inv) => {
+                    const t = TYPE_LABEL[inv.type] || { label: inv.type, className: "" };
+                    return (
+                      <tr key={inv.id} className="hover:bg-accent/40">
+                        <td className="px-4 py-3 text-muted-foreground">{formatDate(inv.created_at)}</td>
+                        <td className="px-4 py-3">
+                          <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${t.className}`}>
+                            {t.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-mono">{inv.number || "—"}</td>
+                        <td className="px-4 py-3">
+                          <p className="truncate">{inv.customer_name}</p>
+                          <p className="text-xs text-muted-foreground">{inv.doc_number}</p>
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold">{formatCOP(inv.total)}</td>
+                        <td className="px-4 py-3">
+                          {inv.status === "emitida" ? (
+                            <span className="text-emerald-600">Emitida</span>
+                          ) : (
+                            <button className="text-red-600 underline" onClick={() => setDetail(inv)} title={inv.error}>
+                              Error
+                            </button>
                           )}
-                          {inv.status !== "emitida" && inv.order_id && (
-                            <Button variant="ghost" size="sm" onClick={() => retry.mutate(inv.order_id)} disabled={retry.isPending} title="Reintentar emisión">
-                              <RefreshCw className={`mr-1 h-4 w-4 ${retry.isPending ? "animate-spin" : ""}`} /> Reintentar
-                            </Button>
+                        </td>
+                        <td className="px-4 py-3">{renderActions(inv)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+
+          {/* Mobile: stacked cards (avoids horizontal overflow) */}
+          <div className="space-y-3 md:hidden">
+            {invoices.map((inv) => {
+              const t = TYPE_LABEL[inv.type] || { label: inv.type, className: "" };
+              return (
+                <Card key={inv.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${t.className}`}>
+                            {t.label}
+                          </span>
+                          {inv.status === "emitida" ? (
+                            <span className="text-xs font-medium text-emerald-600">Emitida</span>
+                          ) : (
+                            <button className="text-xs font-medium text-red-600 underline" onClick={() => setDetail(inv)} title={inv.error}>
+                              Error
+                            </button>
                           )}
-                          <Button variant="ghost" size="icon" title="Ver JSON (envío / respuesta)" onClick={() => setDetail(inv)}>
-                            <Code className="h-4 w-4" />
-                          </Button>
-                          {inv.public_url && (
-                            <Button asChild variant="ghost" size="icon" title="Ver PDF">
-                              <a href={inv.public_url} target="_blank" rel="noreferrer">
-                                <ExternalLink className="h-4 w-4" />
-                              </a>
-                            </Button>
-                          )}
-                          {inv.type === "invoice" && inv.status === "emitida" && !inv.imported && (
-                            <>
-                              <Button variant="ghost" size="sm" onClick={() => setNote({ invoice: inv, kind: "credit", reason: "" })} title="Nota crédito">
-                                <FileMinus className="mr-1 h-4 w-4" /> Crédito
-                              </Button>
-                              <Button variant="ghost" size="sm" onClick={() => setNote({ invoice: inv, kind: "debit", reason: "" })} title="Nota débito">
-                                <FilePlus className="mr-1 h-4 w-4" /> Débito
-                              </Button>
-                            </>
-                          )}
-                          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" title="Eliminar del sistema" onClick={() => askRemoveOne(inv)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+                        <p className="mt-1.5 truncate font-medium">{inv.customer_name || "—"}</p>
+                        <p className="text-xs text-muted-foreground">{inv.doc_number}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="font-semibold">{formatCOP(inv.total)}</p>
+                        <p className="break-all font-mono text-xs text-muted-foreground">{inv.number || "—"}</p>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">{formatDate(inv.created_at)}</p>
+                    <div className="mt-3 border-t pt-2">{renderActions(inv)}</div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </>
       )}
 
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
