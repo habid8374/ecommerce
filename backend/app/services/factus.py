@@ -451,6 +451,7 @@ def _items(order: dict, f: dict) -> list[dict]:
         unit = "94"
     std = str(f.get("standard_code", "999"))
     tax_code = str(f.get("tax_code", "01"))
+    ship_iva = f"{default_iva:.2f}"
     items = []
     for it in order.get("items", []):
         # Per-item IVA (from the product), falling back to the global default.
@@ -480,20 +481,30 @@ def _items(order: dict, f: dict) -> list[dict]:
             "price": shipping_cost,
             "unit_measure_code": unit,
             "standard_code": std,
-            "taxes": [{"code": tax_code, "rate": iva}],
+            "taxes": [{"code": tax_code, "rate": ship_iva}],
         })
     return items
 
 
 def _items_total(items: list[dict], f: dict) -> float:
     """Total Factus will compute from the items (base + IVA). Used so
-    payment_details always equals the item sum."""
-    iva_rate = float(f.get("default_iva", 0))
+    payment_details always equals the item sum Factus expects.
+
+    Reads each item's OWN tax rate (the one embedded in `taxes`), not the global
+    default: products can carry different IVA rates, and using the global default
+    here would mismatch what Factus derives from the items (409 validation error
+    'La suma de los detalles de pago no es igual al total de la factura')."""
     total = 0.0
     for it in items:
         base = it["price"] * it["quantity"] * (1 - it.get("discount_rate", 0) / 100)
-        total += base * (1 + iva_rate / 100)
-    return total
+        taxes = it.get("taxes") or []
+        try:
+            rate = float(taxes[0]["rate"]) if taxes else 0.0
+        except (KeyError, TypeError, ValueError):
+            rate = 0.0
+        # Round each line's tax to 2 decimals as DIAN/Factus does per line.
+        total += round(base + base * rate / 100, 2)
+    return round(total, 2)
 
 
 def _payment_details(order: dict, f: dict, items: list[dict]) -> list[dict]:

@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Printer, ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatCOP, formatDate, ORDER_STATUS, PAYMENT_STATUS } from "@/lib/format";
-import { LogoMark } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 
 export default function OrderPrint() {
@@ -46,9 +45,7 @@ export default function OrderPrint() {
         {/* Header */}
         <div className="flex items-start justify-between border-b pb-6">
           <div className="flex items-center gap-3">
-            <span className="rounded-lg bg-black p-2">
-              <LogoMark size={34} />
-            </span>
+            <img src="/logo_grafibless.jpg" alt="GRAFIBLESS" className="h-11 w-auto rounded-lg" />
             <div>
               <p className="text-xl font-extrabold tracking-tight">
                 GRAFI<span className="text-primary">BLESS</span>

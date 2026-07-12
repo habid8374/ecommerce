@@ -13,7 +13,6 @@ import {
   Boxes,
   Star,
 } from "lucide-react";
-import Logo from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -70,7 +69,7 @@ function NavContent({ onNavigate }) {
   return (
     <div className="flex h-full flex-col">
       <Link to="/admin" className="mb-6 block px-2 pt-1" onClick={onNavigate}>
-        <Logo size={26} />
+        <img src="/logo_grafibless.jpg" alt="GRAFIBLESS" className="h-10 w-auto" />
       </Link>
 
       <nav className="flex flex-1 flex-col gap-1">
@@ -138,7 +137,7 @@ export default function AdminLayout() {
               <NavContent onNavigate={() => setOpen(false)} />
             </SheetContent>
           </Sheet>
-          <Logo size={24} />
+          <img src="/logo_grafibless.jpg" alt="GRAFIBLESS" className="h-9 w-auto" />
         </header>
 
         <main className="min-w-0 flex-1 p-4 md:p-8">
