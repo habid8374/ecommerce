@@ -152,7 +152,8 @@ export default function AdminInventory() {
             <Input placeholder="Buscar por nombre, SKU, código de barras o categoría..." value={q} onChange={(e) => setQ(e.target.value)} className="max-w-sm" />
           </div>
 
-          <Card>
+          {/* Desktop: table */}
+          <Card className="hidden md:block">
             <CardContent className="overflow-x-auto p-0">
               <table className="w-full min-w-[820px] text-sm">
                 <thead>
@@ -208,6 +209,61 @@ export default function AdminInventory() {
               </table>
             </CardContent>
           </Card>
+
+          {/* Mobile: stacked cards (avoids horizontal overflow) */}
+          <div className="space-y-3 md:hidden">
+            {items.map((r) => (
+              <Card key={r.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{r.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {r.sku ? `${r.sku} · ` : ""}{r.category}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-xs font-medium">
+                      {r.is_service ? (
+                        <span className="text-muted-foreground">Servicio</span>
+                      ) : r.out ? (
+                        <span className="text-red-600">Agotado</span>
+                      ) : r.low ? (
+                        <span className="text-amber-600">Bajo</span>
+                      ) : (
+                        <span className="text-emerald-600">OK</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Stock</p>
+                      <p className="font-semibold">{r.is_service ? "—" : r.stock}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">IVA</p>
+                      <p>{r.tax_rate}%</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Costo</p>
+                      <p>{formatCOP(r.cost)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Valor</p>
+                      <p>{r.is_service ? "—" : formatCOP(r.cost_value)}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center gap-1 border-t pt-2">
+                    <Button variant="ghost" size="sm" onClick={() => setMove({ product: r, kind: "in", quantity: "", reason: "", unit_cost: r.cost || "" })} title="Registrar movimiento">
+                      <ArrowDownUp className="mr-1 h-4 w-4" /> Movimiento
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setKardex(r)} title="Historial (kardex)">
+                      <History className="mr-1 h-4 w-4" /> Kardex
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </>
       )}
 
@@ -269,33 +325,35 @@ export default function AdminInventory() {
               {movements.length === 0 ? (
                 <p className="py-8 text-center text-muted-foreground">Sin movimientos registrados.</p>
               ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                      <th className="py-2">Fecha</th>
-                      <th className="py-2">Tipo</th>
-                      <th className="py-2 text-right">Cambio</th>
-                      <th className="py-2 text-right">Saldo</th>
-                      <th className="py-2">Motivo</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {movements.map((m) => {
-                      const t = MOVE_LABEL[m.type] || { label: m.type, className: "" };
-                      return (
-                        <tr key={m.id}>
-                          <td className="py-2 text-muted-foreground">{formatDate(m.created_at)}</td>
-                          <td className={`py-2 font-medium ${t.className}`}>{t.label}</td>
-                          <td className={`py-2 text-right font-mono ${m.change >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                            {m.change >= 0 ? "+" : ""}{m.change}
-                          </td>
-                          <td className="py-2 text-right font-semibold">{m.new_stock}</td>
-                          <td className="py-2 text-muted-foreground">{m.reason}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[420px] text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-xs uppercase text-muted-foreground">
+                        <th className="py-2">Fecha</th>
+                        <th className="py-2">Tipo</th>
+                        <th className="py-2 text-right">Cambio</th>
+                        <th className="py-2 text-right">Saldo</th>
+                        <th className="py-2">Motivo</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {movements.map((m) => {
+                        const t = MOVE_LABEL[m.type] || { label: m.type, className: "" };
+                        return (
+                          <tr key={m.id}>
+                            <td className="py-2 text-muted-foreground">{formatDate(m.created_at)}</td>
+                            <td className={`py-2 font-medium ${t.className}`}>{t.label}</td>
+                            <td className={`py-2 text-right font-mono ${m.change >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                              {m.change >= 0 ? "+" : ""}{m.change}
+                            </td>
+                            <td className="py-2 text-right font-semibold">{m.new_stock}</td>
+                            <td className="py-2 text-muted-foreground">{m.reason}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </>
           )}

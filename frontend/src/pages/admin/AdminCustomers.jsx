@@ -68,43 +68,84 @@ export default function AdminCustomers() {
       ) : customers.length === 0 ? (
         <p className="py-16 text-center text-muted-foreground">Aún no hay clientes registrados.</p>
       ) : (
-        <Card>
-          <CardContent className="overflow-x-auto p-0">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                  <th className="px-4 py-3">Cliente</th>
-                  <th className="px-4 py-3">Teléfono</th>
-                  <th className="px-4 py-3">Ciudad</th>
-                  <th className="px-4 py-3">Registro</th>
-                  <th className="px-4 py-3 text-center">Pedidos</th>
-                  <th className="px-4 py-3 text-right">Total gastado</th>
-                  <th className="px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {customers.map((c) => (
-                  <tr key={c.id} className="hover:bg-accent/40">
-                    <td className="px-4 py-3">
-                      <p className="font-medium">{c.name}</p>
-                      <p className="text-muted-foreground">{c.email}</p>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{c.phone || "—"}</td>
-                    <td className="px-4 py-3 capitalize text-muted-foreground">{c.city || "—"}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatDate(c.created_at)}</td>
-                    <td className="px-4 py-3 text-center">{c.orders_count}</td>
-                    <td className="px-4 py-3 text-right font-semibold">{formatCOP(c.total_spent)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <Button variant="ghost" size="sm" onClick={() => setOpenId(c.id)} data-testid="customer-view">
-                        <Eye className="mr-1 h-4 w-4" /> Ver
-                      </Button>
-                    </td>
+        <>
+          {/* Desktop: table */}
+          <Card className="hidden md:block">
+            <CardContent className="overflow-x-auto p-0">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs uppercase text-muted-foreground">
+                    <th className="px-4 py-3">Cliente</th>
+                    <th className="px-4 py-3">Teléfono</th>
+                    <th className="px-4 py-3">Ciudad</th>
+                    <th className="px-4 py-3">Registro</th>
+                    <th className="px-4 py-3 text-center">Pedidos</th>
+                    <th className="px-4 py-3 text-right">Total gastado</th>
+                    <th className="px-4 py-3"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+                </thead>
+                <tbody className="divide-y">
+                  {customers.map((c) => (
+                    <tr key={c.id} className="hover:bg-accent/40">
+                      <td className="px-4 py-3">
+                        <p className="font-medium">{c.name}</p>
+                        <p className="text-muted-foreground">{c.email}</p>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{c.phone || "—"}</td>
+                      <td className="px-4 py-3 capitalize text-muted-foreground">{c.city || "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{formatDate(c.created_at)}</td>
+                      <td className="px-4 py-3 text-center">{c.orders_count}</td>
+                      <td className="px-4 py-3 text-right font-semibold">{formatCOP(c.total_spent)}</td>
+                      <td className="px-4 py-3 text-right">
+                        <Button variant="ghost" size="sm" onClick={() => setOpenId(c.id)} data-testid="customer-view">
+                          <Eye className="mr-1 h-4 w-4" /> Ver
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+
+          {/* Mobile: stacked cards (avoids horizontal overflow) */}
+          <div className="space-y-3 md:hidden">
+            {customers.map((c) => (
+              <Card key={c.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{c.name}</p>
+                      <p className="truncate text-sm text-muted-foreground">{c.email}</p>
+                    </div>
+                    <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setOpenId(c.id)} data-testid="customer-view">
+                      <Eye className="mr-1 h-4 w-4" /> Ver
+                    </Button>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Teléfono</p>
+                      <p>{c.phone || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Ciudad</p>
+                      <p className="capitalize">{c.city || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Pedidos</p>
+                      <p>{c.orders_count}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Total gastado</p>
+                      <p className="font-semibold">{formatCOP(c.total_spent)}</p>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">Registro: {formatDate(c.created_at)}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
 
       <Dialog open={!!openId} onOpenChange={(o) => !o && setOpenId(null)}>
